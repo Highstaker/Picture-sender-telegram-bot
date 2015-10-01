@@ -23,8 +23,11 @@ KEY_MARKUP = [["/subscribe","/unsubscribe"]]
 # FOLDERS = [path.join(path.expanduser("~"), i) for i in FOLDERS]
 FOLDER = path.join(path.expanduser("~"), 'pic_bot_pics')
 
+#A minimum picture sending period a user can set
+MIN_PICTURE_SEND_PERIOD = 5
+
 PICTURE_SEND_PERIOD = 60 * 5
-# PICTURE_SEND_PERIOD = 1#debug
+# PICTURE_SEND_PERIOD = 5#debug
 
 ################
 ###GLOBALS
@@ -40,12 +43,13 @@ class TelegramBot():
 
 	LAST_UPDATE_ID = None
 
-	subscribers = []
+	#{chat_id: [waiting_time_between_image_sendings,time of the last image sending], ...}
+	subscribers = {}
 
 	def __init__(self, token):
 		super(TelegramBot, self).__init__()
 		self.bot = telegram.Bot(token)
-		self.start_time = time()
+		# self.start_time = time()
 
 	def sendMessage(self,chat_id,text):
 		self.bot.sendMessage(chat_id=chat_id,
@@ -65,17 +69,15 @@ class TelegramBot():
 					fileSet.add( path.join( root, fileName ))
 			return list(fileSet)
 
+		files = get_filepaths_incl_subfolders(FOLDER)
 
-
-		if (time() - self.start_time) > PICTURE_SEND_PERIOD:
+		for i in self.subscribers:
 			debug('sending images')
-			#create a flattened list of files from all FOLDERS
-			# files = list(chain.from_iterable( [[path.join(j,i) for i in listdir(j) if path.isfile(path.join(j,i))] for j in FOLDERS] ) )
-			files = get_filepaths_incl_subfolders(FOLDER)
-			for i in self.subscribers:
+
+			if (time() - self.subscribers[i][1]) > self.subscribers[i][0]:
 				with open( choice( files ),"rb" ) as pic:
 					bot.sendPhoto(chat_id=i,photo=pic)
-			self.start_time = time()
+				self.subscribers[i][1] = time()
 
 		updates = bot.getUpdates(offset=self.LAST_UPDATE_ID, timeout=3)
 
@@ -86,7 +88,7 @@ class TelegramBot():
 
 			if message == "/subscribe":
 				if not chat_id in self.subscribers:
-					self.subscribers += [chat_id]
+					self.subscribers[chat_id] = [PICTURE_SEND_PERIOD,time()]
 					self.sendMessage(chat_id=chat_id,
 						text="You're now subscribed. To cancel subscription enter /unsubscribe",
 						)
@@ -96,18 +98,42 @@ class TelegramBot():
 						)
 			elif message == "/unsubscribe":
 				try:
-					del self.subscribers[self.subscribers.index(chat_id)]
+					del self.subscribers[chat_id]
 					self.sendMessage(chat_id=chat_id,
 						text="You have unsubscribed. To subscribe again type /subscribe",
 						)
-				except ValueError:
+				except KeyError:
 					self.sendMessage(chat_id=chat_id,
 						text="You are not on the list, there is nowhere to unsubscribe you from. To subscribe type /subscribe",
 						)
 			else:
-				self.sendMessage(chat_id=chat_id,
-					text="unknown command"
-					)
+				try:
+					self.subscribers[chat_id]#check if user has subscribed
+					new_period = int(message)
+					if new_period < MIN_PICTURE_SEND_PERIOD:
+						self.subscribers[chat_id][0] = MIN_PICTURE_SEND_PERIOD
+						self.sendMessage(chat_id=chat_id,
+							text="The minimum possible period is " + str(MIN_PICTURE_SEND_PERIOD) + ".\nSetting period to " + str(MIN_PICTURE_SEND_PERIOD) + "."
+							)
+						self.subscribers[chat_id][1] = time()
+					else:
+						self.subscribers[chat_id][0] = new_period
+						self.sendMessage(chat_id=chat_id,
+							text="Setting period to " + str(new_period) + "."
+							)
+						self.subscribers[chat_id][1] = time()
+
+				#user not in list, not subscribed
+				except KeyError:
+					self.sendMessage(chat_id=chat_id,
+						text="You're not subscribed yet! /subscribe first!"
+						)
+
+				#user has sent a bullsh*t command
+				except ValueError:
+					self.sendMessage(chat_id=chat_id,
+						text="unknown command"
+						)
 
 			# Updates global offset to get the new updates
 			self.LAST_UPDATE_ID = update.update_id + 1
