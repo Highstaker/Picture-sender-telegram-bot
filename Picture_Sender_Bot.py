@@ -15,9 +15,10 @@ def debug(*msg):
 ##PARAMETERS
 ############
 
-BOT_TOKEN = "124973178:AAEN9yweYlGdqGpCrfoTyINfNqzIW5cGf10"
+with open(path.join(path.dirname(path.realpath(__file__)), 'token'),'r') as f:
+	BOT_TOKEN = f.read().replace("\n","")
 
-KEY_MARKUP = [["/subscribe","/unsubscribe"]]
+KEY_MARKUP = [["/subscribe","/unsubscribe","/gimmePic"]]
 
 # FOLDERS = ["Изображения/Bluari","Изображения/Allen Williams", "Изображения/AlectorFencer", "Изображения/Bengtern", "Изображения/Nimrais", "Изображения/Psychonautic", "Изображения/Peter Williams","Изображения/Maquenda","Изображения/Rhyu","Изображения/Inspiration_folder/3D","Изображения/Naira","Изображения/BubbleWolf","Изображения/ShadowWolf","Изображения/Tatchit","Изображения/DarkNatasha"]
 # FOLDERS = [path.join(path.expanduser("~"), i) for i in FOLDERS]
@@ -38,6 +39,15 @@ PICTURE_SEND_PERIOD = 60 * 5
 ##METHODS###
 ############
 
+def get_filepaths_incl_subfolders(FOLDER):
+	myFolder = FOLDER
+	fileSet = set() 
+
+	for root, dirs, files in walk(myFolder,followlinks=True):
+		for fileName in files:
+			fileSet.add( path.join( root, fileName ))
+	return list(fileSet)
+
 class TelegramBot():
 	"""docstring for TelegramBot"""
 
@@ -49,7 +59,8 @@ class TelegramBot():
 	def __init__(self, token):
 		super(TelegramBot, self).__init__()
 		self.bot = telegram.Bot(token)
-		# self.start_time = time()
+		#get list of all image files
+		self.files = get_filepaths_incl_subfolders(FOLDER)
 
 	def sendMessage(self,chat_id,text):
 		self.bot.sendMessage(chat_id=chat_id,
@@ -57,26 +68,18 @@ class TelegramBot():
 						reply_markup=telegram.ReplyKeyboardMarkup(KEY_MARKUP)
 						)
 
+	def sendRandomPic(self,chat_id):
+		with open( choice( self.files ),"rb" ) as pic:
+			self.bot.sendPhoto(chat_id=chat_id,photo=pic)
+
 	def echo(self):
 		bot = self.bot
-
-		def get_filepaths_incl_subfolders(FOLDER):
-			myFolder = FOLDER
-			fileSet = set() 
-
-			for root, dirs, files in walk(myFolder,followlinks=True):
-				for fileName in files:
-					fileSet.add( path.join( root, fileName ))
-			return list(fileSet)
-
-		files = get_filepaths_incl_subfolders(FOLDER)
 
 		for i in self.subscribers:
 			debug('sending images')
 
 			if (time() - self.subscribers[i][1]) > self.subscribers[i][0]:
-				with open( choice( files ),"rb" ) as pic:
-					bot.sendPhoto(chat_id=i,photo=pic)
+				self.sendRandomPic(i)
 				self.subscribers[i][1] = time()
 
 		updates = bot.getUpdates(offset=self.LAST_UPDATE_ID, timeout=3)
@@ -106,6 +109,8 @@ class TelegramBot():
 					self.sendMessage(chat_id=chat_id,
 						text="You are not on the list, there is nowhere to unsubscribe you from. To subscribe type /subscribe",
 						)
+			elif message == "/gimmePic":
+				self.sendRandomPic(chat_id)
 			else:
 				try:
 					self.subscribers[chat_id]#check if user has subscribed
