@@ -20,8 +20,6 @@ with open(path.join(path.dirname(path.realpath(__file__)), 'token'),'r') as f:
 
 KEY_MARKUP = [["/subscribe","/unsubscribe","/gimmePic"]]
 
-# FOLDERS = ["Изображения/Bluari","Изображения/Allen Williams", "Изображения/AlectorFencer", "Изображения/Bengtern", "Изображения/Nimrais", "Изображения/Psychonautic", "Изображения/Peter Williams","Изображения/Maquenda","Изображения/Rhyu","Изображения/Inspiration_folder/3D","Изображения/Naira","Изображения/BubbleWolf","Изображения/ShadowWolf","Изображения/Tatchit","Изображения/DarkNatasha"]
-# FOLDERS = [path.join(path.expanduser("~"), i) for i in FOLDERS]
 FOLDER = path.join(path.expanduser("~"), 'pic_bot_pics')
 
 #A minimum picture sending period a user can set
