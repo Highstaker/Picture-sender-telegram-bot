@@ -15,8 +15,6 @@ import socket
 #if a connection is lost and getUpdates takes too long, an error is raised
 socket.setdefaulttimeout(30)
 
-# logging.basicConfig(level = logging.DEBUG)
-
 logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(levelname)-8s  %(message)s', 
 	level = logging.WARNING)
 
@@ -25,15 +23,10 @@ logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(le
 ##PARAMETERS
 ############
 
-HELP_MESSAGE = '''
-Help message.
-'''
+#A filename of a file containing a token.
+TOKEN_FILENAME = 'token'
 
-with open(path.join(path.dirname(path.realpath(__file__)), 'token'),'r') as f:
-	BOT_TOKEN = f.read().replace("\n","")
-
-KEY_MARKUP = [["/subscribe","/unsubscribe","/gimmePic","/help"]]
-
+#folder containing pictures
 FOLDER = path.join(path.expanduser("~"), 'pic_bot_pics')
 
 #A minimum and maximum picture sending period a user can set
@@ -44,10 +37,29 @@ MAX_PICTURE_SEND_PERIOD = 86400
 PICTURE_SEND_PERIOD = 600
 # PICTURE_SEND_PERIOD = 5#debug
 
-################
-###GLOBALS
-############
+HELP_MESSAGE = '''
+This bot sends you random pictures from its collection.
+To get a random picture, type /gimmePic.
+''' \
++ "To make this bot send you a random picture every set amount of time (by default it is " \
++ str(PICTURE_SEND_PERIOD) + " seconds) type /subscribe." \
++'''
+To set a period of sending (in seconds), type a number.
+''' \
++ "Minimum: " + str(MIN_PICTURE_SEND_PERIOD) + " seconds.\n" \
++ "Maximum: " + str(MAX_PICTURE_SEND_PERIOD) + " seconds.\n" \
++ '''
+To stop receiving pictures, type /unsubscribe
+'''
 
+KEY_MARKUP = [["/subscribe","/unsubscribe","/gimmePic","/help"]]
+
+################
+###GLOBALS######
+################
+
+with open(path.join(path.dirname(path.realpath(__file__)), TOKEN_FILENAME),'r') as f:
+	BOT_TOKEN = f.read().replace("\n","")
 
 #############
 ##METHODS###
@@ -136,7 +148,7 @@ class TelegramBot():
 				if not chat_id in self.subscribers:
 					self.subscribers[chat_id] = [PICTURE_SEND_PERIOD,time()]
 					self.sendMessage(chat_id=chat_id,
-						text="You're now subscribed. To cancel subscription enter /unsubscribe. To change the period of picture sending type a number.",
+						text="You're now subscribed. The default period of image sending is " + str(PICTURE_SEND_PERIOD) + " seconds. To cancel subscription enter /unsubscribe. To change the period of picture sending type a number.",
 						)
 				else:
 					self.sendMessage(chat_id=chat_id,
