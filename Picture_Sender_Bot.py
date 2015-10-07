@@ -1,8 +1,6 @@
 #!/usr/bin/python3 -u
 #TODO
-#+Add help
-#+Add upper limit of period
-#+fix freezing on connection loss (the bot won't reconnect even if connection is restored)
+#+random errors on connection loss! Test all functions!
 
 import logging
 import telegram
@@ -103,20 +101,19 @@ class TelegramBot():
 					text=text,
 					reply_markup=telegram.ReplyKeyboardMarkup(KEY_MARKUP)
 					)
-			except telegram.error.TelegramError:
-				logging.error("Could not send message. Retrying!")
+			except Exception as e:
+				logging.error("Could not send message. Retrying! Error: " + str(e))
 				continue
 			break
 
 	def sendPic(self,chat_id,pic):
-		logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
 		while True:
 			try:
 				logging.debug("Picture: " + str(pic))
 				#set file read cursor to the beginning. This ensures that if a file needs to be re-read (may happen due to exception), it is read from the beginning.
 				pic.seek(0)
 				self.bot.sendPhoto(chat_id=chat_id,photo=pic)
-			except telegram.error.TelegramError as e:
+			except Exception as e:
 				logging.error("Could not send picture. Retrying! Error: " + str(e))
 				continue
 			break
@@ -139,8 +136,8 @@ class TelegramBot():
 		while True:
 			try:
 				updates = bot.getUpdates(offset=self.LAST_UPDATE_ID, timeout=3)
-			except telegram.error.TelegramError:
-				logging.error("Could not read updates. Retrying!")
+			except Exception as e:
+				logging.error("Could not read updates. Retrying! Error: " + str(e))
 				continue
 			break
 
