@@ -6,12 +6,11 @@ This bot sends a random picture from a specified folder (subfolders included) to
 
 ##Deployment
 
-To use this program create a file called "token" in the script's folder and paste your bot's token into it (you can call the file otherwise by modifying the TOKEN_FILENAME variable). Then change the FOLDER variable to represent the path to your picture folder.
+To use this program create a file called "token" in the script's folder and paste your bot's token into it (you can call the file otherwise by modifying the `TOKEN_FILENAME` variable). Then change the `FOLDER` variable to represent the path to your picture folder.
 
 ##Dependencies
 
-This program relies on python-telegram-bot.
-https://github.com/leandrotoledo/python-telegram-bot
+This program relies on [python-telegram-bot](https://github.com/leandrotoledo/python-telegram-bot).
 
 To install it, use:
-pip install python-telegram-bot
+`pip install python-telegram-bot`
