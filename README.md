@@ -10,7 +10,9 @@ To use this program create a file called "token" in the script's folder and past
 
 ##Dependencies
 
+This program uses **Python 3**
+
 This program relies on [python-telegram-bot](https://github.com/leandrotoledo/python-telegram-bot).
 
 To install it, use:
-`pip install python-telegram-bot`
+`pip3 install python-telegram-bot`

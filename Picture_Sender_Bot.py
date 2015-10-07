@@ -66,6 +66,9 @@ with open(path.join(path.dirname(path.realpath(__file__)), TOKEN_FILENAME),'r') 
 ############
 
 def get_filepaths_incl_subfolders(FOLDER):
+	"""
+	Returns a list of full paths to all files in a folder and subfolders. Follows links! 
+	"""
 	myFolder = FOLDER
 	fileSet = set() 
 
@@ -74,8 +77,12 @@ def get_filepaths_incl_subfolders(FOLDER):
 			fileSet.add( path.join( root, fileName ))
 	return list(fileSet)
 
+###############
+###CLASSES#####
+###############
+
 class TelegramBot():
-	"""docstring for TelegramBot"""
+	"""The bot class"""
 
 	LAST_UPDATE_ID = None
 
@@ -212,6 +219,7 @@ class TelegramBot():
 def main():
 	bot = TelegramBot(BOT_TOKEN)
 
+	#main loop
 	while True:
 		bot.echo()
 
