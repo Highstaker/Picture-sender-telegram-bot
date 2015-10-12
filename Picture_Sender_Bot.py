@@ -1,6 +1,5 @@
 #!/usr/bin/python3 -u
-#TODO
-#+random errors on connection loss! Test all functions!
+# -*- coding: utf-8 -*-
 
 import logging
 import telegram
@@ -50,7 +49,13 @@ To set a period of sending (in seconds), type a number.
 To stop receiving pictures, type /unsubscribe
 '''
 
-KEY_MARKUP = [["/subscribe","/unsubscribe","/gimmePic","/help"]]
+START_MESSAGE = "Welcome! Type /help to get help."
+
+HELP_BUTTON = "⁉️" + "Help"
+GIMMEPIC_BUTTON = '🎢' + "Gimme Pic!"
+SUBSCRIBE_BUTTON = '✏️' + "Subscribe"
+UNSUBSCRIBE_BUTTON = '🚫' + "Unsubscribe"
+KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUTTON]]
 
 ################
 ###GLOBALS######
@@ -148,7 +153,15 @@ class TelegramBot():
 			message = Message.text
 			logging.warning("Received message: " + str(chat_id) + " " + from_user.username + " " + message)
 
-			if message == "/subscribe":
+			if message == "/start":
+				self.sendMessage(chat_id=chat_id
+					,text=START_MESSAGE
+					)
+			elif message == "/help" or message == HELP_BUTTON:
+				self.sendMessage(chat_id=chat_id
+					,text=HELP_MESSAGE
+					)
+			elif message == "/subscribe" or message == SUBSCRIBE_BUTTON:
 				if not chat_id in self.subscribers:
 					self.subscribers[chat_id] = [PICTURE_SEND_PERIOD,time()]
 					self.sendMessage(chat_id=chat_id,
@@ -158,11 +171,7 @@ class TelegramBot():
 					self.sendMessage(chat_id=chat_id,
 						text="You have already subscribed. To cancel subscription enter /unsubscribe. To change the period of picture sending type a number.",
 						)
-			elif message == "/help":
-				self.sendMessage(chat_id=chat_id
-					,text=HELP_MESSAGE
-					)
-			elif message == "/unsubscribe":
+			elif message == "/unsubscribe" or message == UNSUBSCRIBE_BUTTON:
 				try:
 					del self.subscribers[chat_id]
 					self.sendMessage(chat_id=chat_id,
@@ -172,7 +181,7 @@ class TelegramBot():
 					self.sendMessage(chat_id=chat_id,
 						text="You are not on the list, there is nowhere to unsubscribe you from. To subscribe type /subscribe",
 						)
-			elif message == "/gimmePic":
+			elif message == "/gimmepic" or message == GIMMEPIC_BUTTON:
 				self.sendRandomPic(chat_id)
 			else:
 				try:
