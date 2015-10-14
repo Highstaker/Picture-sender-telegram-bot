@@ -1,5 +1,7 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
+#TODO
+#-Implement subscriber backup into file, in case the bot crashes so it could restore the subscribers list.
 
 import logging
 import telegram
@@ -8,6 +10,7 @@ from random import choice
 from time import time
 from itertools import chain
 import socket
+import pickle #module for saving dictionaries to file
 
 #if a connection is lost and getUpdates takes too long, an error is raised
 socket.setdefaulttimeout(30)
@@ -22,6 +25,9 @@ logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(le
 
 #A filename of a file containing a token.
 TOKEN_FILENAME = 'token'
+
+#A path where subscribers list is saved.
+SUBSCRIBERS_BACKUP_FILE = '/tmp/picbot_subscribers_bak'
 
 #folder containing pictures
 FOLDER = path.join(path.expanduser("~"), 'pic_bot_pics')
@@ -97,6 +103,25 @@ class TelegramBot():
 		self.bot = telegram.Bot(token)
 		#get list of all image files
 		self.files = get_filepaths_incl_subfolders(FOLDER)
+		self.loadSubscribers()
+
+	def loadSubscribers(self):
+		'''
+		Loads subscribers from a file
+		'''
+		try:
+			with open(SUBSCRIBERS_BACKUP_FILE,'rb') as f:
+				self.subscribers = pickle.load(f)
+				print("self.subscribers",self.subscribers)
+		except FileNotFoundError:
+			logging.warning("Subscribers backup file not found. Starting with empty list!")
+
+	def saveSubscribers(self):
+		'''
+		Saves a subscribers list to file
+		'''
+		with open(SUBSCRIBERS_BACKUP_FILE,'wb') as f:
+			pickle.dump(self.subscribers, f, pickle.HIGHEST_PROTOCOL)
 
 	def sendMessage(self,chat_id,text):
 		logging.warning("Replying to " + str(chat_id) + " " + text)
@@ -132,10 +157,15 @@ class TelegramBot():
 	def echo(self):
 		bot = self.bot
 
+		#check if it is time to send an image already
 		for i in self.subscribers:
 			if (time() - self.subscribers[i][1]) > self.subscribers[i][0]:
+				#The time has come for this user
 				self.sendRandomPic(i)
+				#Reset user's timer
 				self.subscribers[i][1] = time()
+				#Save to file
+				self.saveSubscribers()
 
 		#if getting updates fails - retry
 		while True:
@@ -164,6 +194,7 @@ class TelegramBot():
 			elif message == "/subscribe" or message == SUBSCRIBE_BUTTON:
 				if not chat_id in self.subscribers:
 					self.subscribers[chat_id] = [PICTURE_SEND_PERIOD,time()]
+					self.saveSubscribers()
 					self.sendMessage(chat_id=chat_id,
 						text="You're now subscribed. The default period of image sending is " + str(PICTURE_SEND_PERIOD) + " seconds. To cancel subscription enter /unsubscribe. To change the period of picture sending type a number.",
 						)
@@ -174,6 +205,7 @@ class TelegramBot():
 			elif message == "/unsubscribe" or message == UNSUBSCRIBE_BUTTON:
 				try:
 					del self.subscribers[chat_id]
+					self.saveSubscribers()
 					self.sendMessage(chat_id=chat_id,
 						text="You have unsubscribed. To subscribe again type /subscribe",
 						)
@@ -184,27 +216,37 @@ class TelegramBot():
 			elif message == "/gimmepic" or message == GIMMEPIC_BUTTON:
 				self.sendRandomPic(chat_id)
 			else:
+				#any other message
 				try:
 					self.subscribers[chat_id]#check if user has subscribed
 					new_period = int(message)
+
+					#If a period is too small
 					if new_period < MIN_PICTURE_SEND_PERIOD:
 						self.subscribers[chat_id][0] = MIN_PICTURE_SEND_PERIOD
 						self.sendMessage(chat_id=chat_id,
 							text="The minimum possible period is " + str(MIN_PICTURE_SEND_PERIOD) + ".\nSetting period to " + str(MIN_PICTURE_SEND_PERIOD) + "."
 							)
 						self.subscribers[chat_id][1] = time()
+
+					#If a period is too big
 					elif new_period > MAX_PICTURE_SEND_PERIOD:
 						self.subscribers[chat_id][0] = MAX_PICTURE_SEND_PERIOD
 						self.sendMessage(chat_id=chat_id,
 							text="The maximum possible period is " + str(MAX_PICTURE_SEND_PERIOD) + ".\nSetting period to " + str(MAX_PICTURE_SEND_PERIOD) + "."
 							)
 						self.subscribers[chat_id][1] = time()
+
+					#If a period length is fine - accept
 					else:
 						self.subscribers[chat_id][0] = new_period
 						self.sendMessage(chat_id=chat_id,
 							text="Setting period to " + str(new_period) + "."
 							)
 						self.subscribers[chat_id][1] = time()
+
+					#A new period should be saved to file
+					self.saveSubscribers()
 
 				#user not in list, not subscribed
 				except KeyError:
@@ -215,7 +257,7 @@ class TelegramBot():
 				#user has sent a bullsh*t command
 				except ValueError:
 					self.sendMessage(chat_id=chat_id,
-						text="unknown command"
+						text="Unknown command!"
 						)
 
 			# Updates global offset to get the new updates
