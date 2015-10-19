@@ -1,7 +1,5 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
-#TODO
-#-Implement subscriber backup into file, in case the bot crashes so it could restore the subscribers list.
 
 import logging
 import telegram
@@ -25,6 +23,9 @@ logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(le
 
 #A filename of a file containing a token.
 TOKEN_FILENAME = 'token'
+
+#A name of a file containing metadata which is displayed together with a picture.
+METADATA_FILENAME = "pic_bot_meta.txt"
 
 #A path where subscribers list is saved.
 SUBSCRIBERS_BACKUP_FILE = '/tmp/picbot_subscribers_bak'
@@ -124,7 +125,7 @@ class TelegramBot():
 			pickle.dump(self.subscribers, f, pickle.HIGHEST_PROTOCOL)
 
 	def sendMessage(self,chat_id,text):
-		logging.warning("Replying to " + str(chat_id) + " " + text)
+		logging.warning("Replying to " + str(chat_id) + ": " + text)
 		while True:
 			try:
 				self.bot.sendMessage(chat_id=chat_id,
@@ -149,9 +150,19 @@ class TelegramBot():
 			break
 
 	def sendRandomPic(self,chat_id):
-		with open( choice( self.files ),"rb" ) as pic:
+		random_pic_path = choice( self.files )
+		with open( random_pic_path,"rb" ) as pic:
 			logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
 			self.sendPic(chat_id,pic)
+
+		#try sending metadata if present. Skip if not.
+		try:
+			with open( path.join( path.abspath(path.join(random_pic_path, path.pardir)), METADATA_FILENAME), "r") as metafile:
+				self.sendMessage(chat_id=chat_id,
+					text=metafile.read()
+					)
+		except FileNotFoundError:
+			pass
 
 
 	def echo(self):
