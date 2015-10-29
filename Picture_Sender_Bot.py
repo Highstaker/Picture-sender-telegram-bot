@@ -1,6 +1,8 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
 
+VERSION_NUMBER = (0,7,0)
+
 import logging
 import telegram
 from os import path, listdir, walk
@@ -41,6 +43,14 @@ MAX_PICTURE_SEND_PERIOD = 86400
 PICTURE_SEND_PERIOD = 600
 # PICTURE_SEND_PERIOD = 5#debug
 
+ABOUT_MESSAGE = """*Random Picture Bot*
+_Created by:_ Highstaker a.k.a. OmniSable.
+Source: https://github.com/Highstaker/Picture-sender-telegram-bot
+Version: """ + ".".join([str(i) for i in VERSION_NUMBER]) + """
+This bot uses the python-telegram-bot library.
+https://github.com/leandrotoledo/python-telegram-bot
+"""
+
 HELP_MESSAGE = '''
 This bot sends you random pictures from its collection.
 To get a random picture, type /gimmePic.
@@ -58,11 +68,12 @@ To stop receiving pictures, type /unsubscribe
 
 START_MESSAGE = "Welcome! Type /help to get help."
 
+ABOUT_BUTTON = "ℹ️ About"
 HELP_BUTTON = "⁉️" + "Help"
 GIMMEPIC_BUTTON = '🎢' + "Gimme Pic!"
 SUBSCRIBE_BUTTON = '✏️' + "Subscribe"
 UNSUBSCRIBE_BUTTON = '🚫' + "Unsubscribe"
-KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUTTON]]
+KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUTTON, ABOUT_BUTTON]]
 
 ################
 ###GLOBALS######
@@ -70,6 +81,8 @@ KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUT
 
 with open(path.join(path.dirname(path.realpath(__file__)), TOKEN_FILENAME),'r') as f:
 	BOT_TOKEN = f.read().replace("\n","")
+
+
 
 #############
 ##METHODS###
@@ -128,8 +141,10 @@ class TelegramBot():
 		logging.warning("Replying to " + str(chat_id) + ": " + text)
 		while True:
 			try:
+				self.bot.sendChatAction(chat_id,telegram.ChatAction.TYPING)
 				self.bot.sendMessage(chat_id=chat_id,
 					text=text,
+					parse_mode='Markdown',
 					reply_markup=telegram.ReplyKeyboardMarkup(KEY_MARKUP)
 					)
 			except Exception as e:
@@ -141,6 +156,7 @@ class TelegramBot():
 		while True:
 			try:
 				logging.debug("Picture: " + str(pic))
+				self.bot.sendChatAction(chat_id,telegram.ChatAction.UPLOAD_PHOTO)
 				#set file read cursor to the beginning. This ensures that if a file needs to be re-read (may happen due to exception), it is read from the beginning.
 				pic.seek(0)
 				self.bot.sendPhoto(chat_id=chat_id,photo=pic)
@@ -201,6 +217,10 @@ class TelegramBot():
 			elif message == "/help" or message == HELP_BUTTON:
 				self.sendMessage(chat_id=chat_id
 					,text=HELP_MESSAGE
+					)
+			elif message == "/about" or message == ABOUT_BUTTON:
+				self.sendMessage(chat_id=chat_id
+					,text=ABOUT_MESSAGE
 					)
 			elif message == "/subscribe" or message == SUBSCRIBE_BUTTON:
 				if not chat_id in self.subscribers:
