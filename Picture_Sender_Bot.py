@@ -1,7 +1,11 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
+#TODO
+#-bot tries to send text files too. Make a filter that retries a random if it encounters a non-image file
+#-make the bot read files on the fly, so I wouldn't have to restart it each time (or should I?)
+#-add language support
 
-VERSION_NUMBER = (0,7,0)
+VERSION_NUMBER = (0,7,1)
 
 import logging
 import telegram
@@ -73,7 +77,7 @@ HELP_BUTTON = "⁉️" + "Help"
 GIMMEPIC_BUTTON = '🎢' + "Gimme Pic!"
 SUBSCRIBE_BUTTON = '✏️' + "Subscribe"
 UNSUBSCRIBE_BUTTON = '🚫' + "Unsubscribe"
-KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUTTON, ABOUT_BUTTON]]
+MAIN_MENU_KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUTTON, ABOUT_BUTTON]]
 
 ################
 ###GLOBALS######
@@ -119,6 +123,28 @@ class TelegramBot():
 		self.files = get_filepaths_incl_subfolders(FOLDER)
 		self.loadSubscribers()
 
+	def languageSupport(self,chat_id,message):
+		'''
+		Returns a message depending on a language chosen by user
+		'''
+		if isinstance(message,str):
+			result = message
+		elif isinstance(message,dict):
+			try:
+				result = message[self.subscribers[chat_id][0]]
+			except:
+				result = message["EN"]
+		elif isinstance(message,list):
+			#could be a key markup
+			result = list(message)
+			for n,i in enumerate(message):
+				result[n] = self.languageSupport(chat_id,i)
+		else:
+			result = " "
+			
+		return result
+
+
 	def loadSubscribers(self):
 		'''
 		Loads subscribers from a file
@@ -137,19 +163,31 @@ class TelegramBot():
 		with open(SUBSCRIBERS_BACKUP_FILE,'wb') as f:
 			pickle.dump(self.subscribers, f, pickle.HIGHEST_PROTOCOL)
 
-	def sendMessage(self,chat_id,text):
+	def sendMessage(self,chat_id,text,key_markup=MAIN_MENU_KEY_MARKUP,preview=True):
 		logging.warning("Replying to " + str(chat_id) + ": " + text)
+		key_markup = self.languageSupport(chat_id,key_markup)
 		while True:
 			try:
-				self.bot.sendChatAction(chat_id,telegram.ChatAction.TYPING)
-				self.bot.sendMessage(chat_id=chat_id,
-					text=text,
-					parse_mode='Markdown',
-					reply_markup=telegram.ReplyKeyboardMarkup(KEY_MARKUP)
-					)
+				if text:
+					self.bot.sendChatAction(chat_id,telegram.ChatAction.TYPING)
+					self.bot.sendMessage(chat_id=chat_id,
+						text=text,
+						parse_mode='Markdown',
+						disable_web_page_preview=(not preview),
+						reply_markup=telegram.ReplyKeyboardMarkup(key_markup)
+						)
 			except Exception as e:
-				logging.error("Could not send message. Retrying! Error: " + str(e))
-				continue
+				if "Message is too long" in str(e):
+					self.sendMessage(chat_id=chat_id
+						,text="Error: Message is too long!"
+						)
+					break
+				if ("urlopen error" in str(e)) or ("timed out" in str(e)):
+					logging.error("Could not send message. Retrying! Error: " + str(e))
+					sleep(3)
+					continue
+				else:
+					logging.error("Could not send message. Error: " + str(e))
 			break
 
 	def sendPic(self,chat_id,pic):
@@ -166,7 +204,10 @@ class TelegramBot():
 			break
 
 	def sendRandomPic(self,chat_id):
-		random_pic_path = choice( self.files )
+		random_pic_path = ""
+		while not (path.splitext(random_pic_path)[1] in ['.jpg', '.jpeg', '.gif', '.png', '.tif', '.bmp']):
+			#filtering. Only images should be picked
+			random_pic_path = choice( self.files )
 		with open( random_pic_path,"rb" ) as pic:
 			logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
 			self.sendPic(chat_id,pic)
@@ -174,8 +215,9 @@ class TelegramBot():
 		#try sending metadata if present. Skip if not.
 		try:
 			with open( path.join( path.abspath(path.join(random_pic_path, path.pardir)), METADATA_FILENAME), "r") as metafile:
-				self.sendMessage(chat_id=chat_id,
-					text=metafile.read()
+				self.sendMessage(chat_id=chat_id
+					,text=metafile.read()
+					,preview=False
 					)
 		except FileNotFoundError:
 			pass
