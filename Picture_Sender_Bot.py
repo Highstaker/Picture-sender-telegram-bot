@@ -124,28 +124,6 @@ def getFilepathsInclSubfolders(FOLDER):
 			fileSet.add( path.join( root, fileName ))
 	return list(fileSet)
 
-# def getFilepathsInclSubfoldersDropbox(FOLDER,DBclient):
-# 	'''
-# 	Returns a list of full paths to all files in a folder and subfolders in Dropbox 
-# 	'''
-# 	# filelist = []
-# 	def readDir(DIR):
-# 		result = []
-# 		for i in DBclient.metadata(DIR)['contents']:
-# 			if i['is_dir']:
-# 				print("i['path']",i['path'])#debug
-# 				result += readDir(i['path'])
-# 			else:
-# 				#a file, add to list
-# 				result += [i['path']]
-# 		return result
-
-# 	filelist = readDir(FOLDER)
-# 	# print(filelist)#debug
-# 	# quit()#debug
-
-# 	return filelist
-
 def getFilepathsInclSubfoldersDropboxPublic(LINK):
 	'''
 	Returns a list of full paths to all files in a public folder (provided with a link) and subfolders in Dropbox 
@@ -165,9 +143,6 @@ def getFilepathsInclSubfoldersDropboxPublic(LINK):
 		return result
 
 	filelist = readDir(LINK,"/")
-
-	# print(filelist)#debug
-	# quit()#debug
 
 	return filelist
 
@@ -192,19 +167,8 @@ class TelegramBot():
 
 		self.loadSubscribers()
 
-		# if FROM_DROPBOX:
-		# 	self.startDropbox()
-
 		#get list of all image files
 		self.files = getFilepathsInclSubfolders(FOLDER) if not FROM_DROPBOX else getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK)
-
-
-
-
-	# def startDropbox(self):
-
-	# 	self.DBclient = dropbox.client.DropboxClient(DROPBOX_TOKEN)
-	# 	print('linked account: ', self.DBclient.account_info())
 
 	def languageSupport(self,chat_id,message):
 		'''
@@ -320,12 +284,9 @@ class TelegramBot():
 					tmp_path = path.join("/tmp/", path.basename(random_pic_path) )
 				#First, get metadata of a file. It contains a direct link to it!
 				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=random_pic_path) )
-				# print(req)#debug
-				# print(req.content)#debug
 				if req.ok:
 					#If metadata got grabbed, extract a link to a file and make a downloadable version of it
 					req= json.loads(req.content.decode())['link'].split("?")[0] + "?dl=1"
-					# print('link',req)#debug
 
 					#now let's get the file contents
 					try:
