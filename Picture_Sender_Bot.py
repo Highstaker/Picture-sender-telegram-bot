@@ -1,20 +1,20 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
 #TODO
-#-bot tries to send text files too. Make a filter that retries a random if it encounters a non-image file
-#-make the bot read files on the fly, so I wouldn't have to restart it each time (or should I?)
-#-add language support
+#-send metadata from Dropbox
 
-VERSION_NUMBER = (0,7,1)
+VERSION_NUMBER = (0,8,1)
 
 import logging
 import telegram
-from os import path, listdir, walk
+from os import path, listdir, walk, remove as file_remove
 from random import choice
 from time import time
 from itertools import chain
 import socket
 import pickle #module for saving dictionaries to file
+# import dropbox
+import requests, json
 
 #if a connection is lost and getUpdates takes too long, an error is raised
 socket.setdefaulttimeout(30)
@@ -26,6 +26,23 @@ logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(le
 ############
 ##PARAMETERS
 ############
+
+#If true, use dropbox. If false, use local filesystem
+FROM_DROPBOX = True
+
+#A file containing a link to the public folder
+DROPBOX_FOLDER_LINK_FILENAME = "DB_public_link"
+
+#A link to shared folder on Dropbox
+with open(path.join(path.dirname(path.realpath(__file__)),DROPBOX_FOLDER_LINK_FILENAME), 'r') as f:
+	DROPBOX_FOLDER_LINK= f.read().split("\n")[0]
+
+#File storing dropbox keys
+DROPBOX_TOKEN_FILENAME="dropbox_tokens"
+
+#Dropbox app keys
+with open(path.join(path.dirname(path.realpath(__file__)), DROPBOX_TOKEN_FILENAME),'r') as f:
+	DROPBOX_APP_KEY,DROPBOX_SECRET_KEY = f.read().split("\n")[:2]
 
 #A filename of a file containing a token.
 TOKEN_FILENAME = 'token'
@@ -39,8 +56,11 @@ SUBSCRIBERS_BACKUP_FILE = '/tmp/picbot_subscribers_bak'
 #folder containing pictures
 FOLDER = path.join(path.expanduser("~"), 'pic_bot_pics')
 
+#folder containing pictures in Dropbox
+DROPBOX_FOLDER = "/Изображения/Inspiration_folder"
+
 #A minimum and maximum picture sending period a user can set
-MIN_PICTURE_SEND_PERIOD = 30
+MIN_PICTURE_SEND_PERIOD = 60
 MAX_PICTURE_SEND_PERIOD = 86400
 
 #A default send period
@@ -92,7 +112,7 @@ with open(path.join(path.dirname(path.realpath(__file__)), TOKEN_FILENAME),'r') 
 ##METHODS###
 ############
 
-def get_filepaths_incl_subfolders(FOLDER):
+def getFilepathsInclSubfolders(FOLDER):
 	"""
 	Returns a list of full paths to all files in a folder and subfolders. Follows links! 
 	"""
@@ -103,6 +123,28 @@ def get_filepaths_incl_subfolders(FOLDER):
 		for fileName in files:
 			fileSet.add( path.join( root, fileName ))
 	return list(fileSet)
+
+def getFilepathsInclSubfoldersDropboxPublic(LINK):
+	'''
+	Returns a list of full paths to all files in a public folder (provided with a link) and subfolders in Dropbox 
+	'''
+
+	def readDir(LINK,DIR):
+		req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=DIR) )
+
+		result = []
+		for i in json.loads(req.content.decode())['contents']:
+			if i['is_dir']:
+				print("i['path']",i['path'])#debug
+				result += readDir(LINK,i['path'])
+			else:
+				#a file, add to list
+				result += [i['path']]
+		return result
+
+	filelist = readDir(LINK,"/")
+
+	return filelist
 
 ###############
 ###CLASSES#####
@@ -116,12 +158,17 @@ class TelegramBot():
 	#{chat_id: [waiting_time_between_image_sendings,time of the last image sending], ...}
 	subscribers = {}
 
+	#once dropbox user is authorized, set to true to allow operations
+	DB_authorized = False
+
 	def __init__(self, token):
 		super(TelegramBot, self).__init__()
 		self.bot = telegram.Bot(token)
-		#get list of all image files
-		self.files = get_filepaths_incl_subfolders(FOLDER)
+
 		self.loadSubscribers()
+
+		#get list of all image files
+		self.files = getFilepathsInclSubfolders(FOLDER) if not FROM_DROPBOX else getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK)
 
 	def languageSupport(self,chat_id,message):
 		'''
@@ -190,37 +237,91 @@ class TelegramBot():
 					logging.error("Could not send message. Error: " + str(e))
 			break
 
-	def sendPic(self,chat_id,pic):
+	def sendPic(self,chat_id,pic,caption=None):
 		while True:
 			try:
 				logging.debug("Picture: " + str(pic))
 				self.bot.sendChatAction(chat_id,telegram.ChatAction.UPLOAD_PHOTO)
 				#set file read cursor to the beginning. This ensures that if a file needs to be re-read (may happen due to exception), it is read from the beginning.
 				pic.seek(0)
-				self.bot.sendPhoto(chat_id=chat_id,photo=pic)
+				self.bot.sendPhoto(chat_id=chat_id,photo=pic,caption=caption)
 			except Exception as e:
 				logging.error("Could not send picture. Retrying! Error: " + str(e))
 				continue
 			break
 
 	def sendRandomPic(self,chat_id):
-		random_pic_path = ""
-		while not (path.splitext(random_pic_path)[1] in ['.jpg', '.jpeg', '.gif', '.png', '.tif', '.bmp']):
-			#filtering. Only images should be picked
-			random_pic_path = choice( self.files )
-		with open( random_pic_path,"rb" ) as pic:
-			logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
-			self.sendPic(chat_id,pic)
+		if not FROM_DROPBOX:
+			###########
+			###from local filesystem
+			##############
+			random_pic_path = ""
+			while not (path.splitext(random_pic_path)[1].lower() in ['.jpg', '.jpeg', '.gif', '.png', '.tif', '.bmp']):
+				#filtering. Only images should be picked
+				random_pic_path = choice( self.files )
+			metadata=""
+			#try sending metadata if present. Skip if not.
+			try:
+				with open( path.join( path.abspath(path.join(random_pic_path, path.pardir)), METADATA_FILENAME), "r") as metafile:
+					metadata=metafile.read()
+			except FileNotFoundError:
+				pass
 
-		#try sending metadata if present. Skip if not.
-		try:
-			with open( path.join( path.abspath(path.join(random_pic_path, path.pardir)), METADATA_FILENAME), "r") as metafile:
-				self.sendMessage(chat_id=chat_id
-					,text=metafile.read()
-					,preview=False
-					)
-		except FileNotFoundError:
-			pass
+			with open( random_pic_path,"rb" ) as pic:
+				logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
+				self.sendPic(chat_id,pic,caption=metadata)
+
+
+		else:
+			############
+			#from dropbox
+			###########
+			while True:
+				random_pic_path = ""
+				while not (path.splitext(random_pic_path)[1].lower() in ['.jpg', '.jpeg', '.gif', '.png', '.tif', '.bmp']):
+					#filtering. Only images should be picked
+					random_pic_path = choice( self.files )
+					tmp_path = path.join("/tmp/", path.basename(random_pic_path) )
+				#First, get metadata of a file. It contains a direct link to it!
+				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=random_pic_path) )
+				if req.ok:
+					#If metadata got grabbed, extract a link to a file and make a downloadable version of it
+					req= json.loads(req.content.decode())['link'].split("?")[0] + "?dl=1"
+
+					#now let's get the file contents
+					try:
+						req=requests.get(req)
+						if req.ok:
+							req= req.content
+							break
+					except:
+						pass
+
+				else:
+					#handle absence of file (maybe got deleted?)
+					pass
+
+			metadata=""
+			#try to read metadata
+			meta_req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=path.join(path.dirname(random_pic_path),METADATA_FILENAME ) ) )
+			if meta_req.ok:
+				try:
+					meta_req= json.loads(meta_req.content.decode())['link'].split("?")[0] + "?dl=1"
+					meta_req = requests.get(meta_req)
+					metadata = meta_req.content.decode()
+				except:
+					pass
+
+			with open(tmp_path, 'wb') as tmppic:
+				#now let's save the file to temporary
+				tmppic.write(req)
+
+			with open(tmp_path, 'rb') as pic:
+				#send the file
+				logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
+				self.sendPic(chat_id,pic,caption=metadata)
+			# delete temporary file
+			file_remove(tmp_path)
 
 
 	def echo(self):
