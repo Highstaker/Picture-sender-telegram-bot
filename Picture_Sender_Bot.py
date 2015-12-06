@@ -3,7 +3,7 @@
 #TODO
 #-send metadata from Dropbox
 
-VERSION_NUMBER = (0,8,0)
+VERSION_NUMBER = (0,8,1)
 
 import logging
 import telegram
@@ -27,11 +27,15 @@ logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(le
 ##PARAMETERS
 ############
 
-#A link to shared folder on Dropbox
-DROPBOX_FOLDER_LINK="https://www.dropbox.com/sh/wm6a4aenigc8t04/AACvv8PvLX_G9Fs0D3I-ROcXa?dl=0"
-
 #If true, use dropbox. If false, use local filesystem
 FROM_DROPBOX = True
+
+#A file containing a link to the public folder
+DROPBOX_FOLDER_LINK_FILENAME = "DB_public_link"
+
+#A link to shared folder on Dropbox
+with open(path.join(path.dirname(path.realpath(__file__)),DROPBOX_FOLDER_LINK_FILENAME), 'r') as f:
+	DROPBOX_FOLDER_LINK= f.read().split("\n")[0]
 
 #File storing dropbox keys
 DROPBOX_TOKEN_FILENAME="dropbox_tokens"
@@ -56,7 +60,7 @@ FOLDER = path.join(path.expanduser("~"), 'pic_bot_pics')
 DROPBOX_FOLDER = "/Изображения/Inspiration_folder"
 
 #A minimum and maximum picture sending period a user can set
-MIN_PICTURE_SEND_PERIOD = 30
+MIN_PICTURE_SEND_PERIOD = 60
 MAX_PICTURE_SEND_PERIOD = 86400
 
 #A default send period
@@ -160,7 +164,7 @@ def getFilepathsInclSubfoldersDropboxPublic(LINK):
 				result += [i['path']]
 		return result
 
-	filelist = readDir(LINK,"/3D/Martinez")
+	filelist = readDir(LINK,"/")
 
 	# print(filelist)#debug
 	# quit()#debug
@@ -269,41 +273,45 @@ class TelegramBot():
 					logging.error("Could not send message. Error: " + str(e))
 			break
 
-	def sendPic(self,chat_id,pic):
+	def sendPic(self,chat_id,pic,caption=None):
 		while True:
 			try:
 				logging.debug("Picture: " + str(pic))
 				self.bot.sendChatAction(chat_id,telegram.ChatAction.UPLOAD_PHOTO)
 				#set file read cursor to the beginning. This ensures that if a file needs to be re-read (may happen due to exception), it is read from the beginning.
 				pic.seek(0)
-				self.bot.sendPhoto(chat_id=chat_id,photo=pic)
+				self.bot.sendPhoto(chat_id=chat_id,photo=pic,caption=caption)
 			except Exception as e:
 				logging.error("Could not send picture. Retrying! Error: " + str(e))
 				continue
 			break
 
 	def sendRandomPic(self,chat_id):
-
 		if not FROM_DROPBOX:
+			###########
+			###from local filesystem
+			##############
 			random_pic_path = ""
 			while not (path.splitext(random_pic_path)[1].lower() in ['.jpg', '.jpeg', '.gif', '.png', '.tif', '.bmp']):
 				#filtering. Only images should be picked
 				random_pic_path = choice( self.files )
-			with open( random_pic_path,"rb" ) as pic:
-				logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
-				self.sendPic(chat_id,pic)
-
+			metadata=""
 			#try sending metadata if present. Skip if not.
 			try:
 				with open( path.join( path.abspath(path.join(random_pic_path, path.pardir)), METADATA_FILENAME), "r") as metafile:
-					self.sendMessage(chat_id=chat_id
-						,text=metafile.read()
-						,preview=False
-						)
+					metadata=metafile.read()
 			except FileNotFoundError:
 				pass
+
+			with open( random_pic_path,"rb" ) as pic:
+				logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
+				self.sendPic(chat_id,pic,caption=metadata)
+
+
 		else:
+			############
 			#from dropbox
+			###########
 			while True:
 				random_pic_path = ""
 				while not (path.splitext(random_pic_path)[1].lower() in ['.jpg', '.jpeg', '.gif', '.png', '.tif', '.bmp']):
@@ -312,8 +320,8 @@ class TelegramBot():
 					tmp_path = path.join("/tmp/", path.basename(random_pic_path) )
 				#First, get metadata of a file. It contains a direct link to it!
 				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=random_pic_path) )
-				print(req)#debug
-				print(req.content)#debug
+				# print(req)#debug
+				# print(req.content)#debug
 				if req.ok:
 					#If metadata got grabbed, extract a link to a file and make a downloadable version of it
 					req= json.loads(req.content.decode())['link'].split("?")[0] + "?dl=1"
@@ -332,6 +340,17 @@ class TelegramBot():
 					#handle absence of file (maybe got deleted?)
 					pass
 
+			metadata=""
+			#try to read metadata
+			meta_req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=path.join(path.dirname(random_pic_path),METADATA_FILENAME ) ) )
+			if meta_req.ok:
+				try:
+					meta_req= json.loads(meta_req.content.decode())['link'].split("?")[0] + "?dl=1"
+					meta_req = requests.get(meta_req)
+					metadata = meta_req.content.decode()
+				except:
+					pass
+
 			with open(tmp_path, 'wb') as tmppic:
 				#now let's save the file to temporary
 				tmppic.write(req)
@@ -339,20 +358,9 @@ class TelegramBot():
 			with open(tmp_path, 'rb') as pic:
 				#send the file
 				logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
-				self.sendPic(chat_id,pic)
+				self.sendPic(chat_id,pic,caption=metadata)
 			# delete temporary file
 			file_remove(tmp_path)
-
-			# #try sending metadata if present. Skip if not.
-			# try:
-			# 	with open( path.join( path.abspath(path.join(random_pic_path, path.pardir)), METADATA_FILENAME), "r") as metafile:
-			# 		self.sendMessage(chat_id=chat_id
-			# 			,text=metafile.read()
-			# 			,preview=False
-			# 			)
-			# except FileNotFoundError:
-			# 	pass
-
 
 
 	def echo(self):
