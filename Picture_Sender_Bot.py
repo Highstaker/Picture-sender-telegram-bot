@@ -1,9 +1,8 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
 #TODO
-#-send metadata from Dropbox
 
-VERSION_NUMBER = (0,8,2)
+VERSION_NUMBER = (0,9,0)
 
 import logging
 import telegram
@@ -13,8 +12,8 @@ from time import time
 from itertools import chain
 import socket
 import pickle #module for saving dictionaries to file
-# import dropbox
 import requests, json
+from multiprocessing import Process, Queue
 
 #if a connection is lost and getUpdates takes too long, an error is raised
 socket.setdefaulttimeout(30)
@@ -161,6 +160,9 @@ class TelegramBot():
 	#{chat_id: [waiting_time_between_image_sendings,time of the last image sending], ...}
 	subscribers = {}
 
+	#Dictionary containing hanndles to picture-sending processes
+	processes = {}
+
 	#once dropbox user is authorized, set to true to allow operations
 	DB_authorized = False
 
@@ -263,7 +265,7 @@ class TelegramBot():
 				continue
 			break
 
-	def sendRandomPic(self,chat_id):
+	def sendRandomPic(self,chat_id,queue):
 		if not FROM_DROPBOX:
 			###########
 			###from local filesystem
@@ -340,6 +342,33 @@ class TelegramBot():
 	def echo(self):
 		bot = self.bot
 
+		def startRandomPicProcess(chat_id):
+			'''
+			Starts and image sending process.
+			'''
+			def startProcess():
+				q = Queue()
+				p = Process(target=self.sendRandomPic,args=(chat_id,q,))
+				self.processes[chat_id]=(p,q)
+				p.start()
+			try:
+				if self.processes[chat_id][0].is_alive():
+					#the process is still working
+					self.sendMessage(chat_id=chat_id
+						,text="I'm still sending your picture. Please wait!"
+						)
+				else:
+					#the process entry exists but the process is terminated. Very improbable.
+					startProcess()
+			except KeyError:
+				startProcess()
+
+		#clean the image-getting processes that have terminated
+		tempProcesses=dict(self.processes) #because error occurs if dictionary changes size during loop
+		for i in tempProcesses:
+			if not self.processes[i][0].is_alive():
+				del self.processes[i]
+
 		#check if it is time to update the file list
 		if time() - self.last_update_time > FILE_UPDATE_PERIOD:
 			self.updateFileList()
@@ -347,8 +376,8 @@ class TelegramBot():
 		#check if it is time to send an image already
 		for i in self.subscribers:
 			if (time() - self.subscribers[i][1]) > self.subscribers[i][0]:
-				#The time has come for this user
-				self.sendRandomPic(i)
+				#The time has come for this user (heh, sounds intimidating)
+				startRandomPicProcess(i)
 				#Reset user's timer
 				self.subscribers[i][1] = time()
 				#Save to file
@@ -391,7 +420,7 @@ class TelegramBot():
 						)
 				else:
 					self.sendMessage(chat_id=chat_id,
-						text="You have already subscribed. To cancel subscription enter /unsubscribe. To change the period of picture sending type a number.",
+						text="You have already subscribed. To cancel subscription enter /unsubscribe. To change the period of picture sending type a number.\nYour current period is " + str(self.subscribers[chat_id][0])+ " seconds.",
 						)
 			elif message == "/unsubscribe" or message == UNSUBSCRIBE_BUTTON:
 				try:
@@ -405,7 +434,7 @@ class TelegramBot():
 						text="You are not on the list, there is nowhere to unsubscribe you from. To subscribe type /subscribe",
 						)
 			elif message == "/gimmepic" or message == GIMMEPIC_BUTTON:
-				self.sendRandomPic(chat_id)
+				startRandomPicProcess(chat_id)
 			else:
 				#any other message
 				try:
