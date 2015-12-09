@@ -3,7 +3,7 @@
 #TODO
 #-send metadata from Dropbox
 
-VERSION_NUMBER = (0,8,1)
+VERSION_NUMBER = (0,8,2)
 
 import logging
 import telegram
@@ -26,6 +26,9 @@ logging.basicConfig(format = u'[%(asctime)s] %(filename)s[LINE:%(lineno)d]# %(le
 ############
 ##PARAMETERS
 ############
+
+#How often should a file list of images be updated
+FILE_UPDATE_PERIOD = 86400
 
 #If true, use dropbox. If false, use local filesystem
 FROM_DROPBOX = True
@@ -135,7 +138,7 @@ def getFilepathsInclSubfoldersDropboxPublic(LINK):
 		result = []
 		for i in json.loads(req.content.decode())['contents']:
 			if i['is_dir']:
-				print("i['path']",i['path'])#debug
+				logging.warning("Reading directory: " + str(i['path']))#debug
 				result += readDir(LINK,i['path'])
 			else:
 				#a file, add to list
@@ -161,6 +164,9 @@ class TelegramBot():
 	#once dropbox user is authorized, set to true to allow operations
 	DB_authorized = False
 
+	#the moment when the file list was last updated
+	last_update_time=time()
+
 	def __init__(self, token):
 		super(TelegramBot, self).__init__()
 		self.bot = telegram.Bot(token)
@@ -168,7 +174,14 @@ class TelegramBot():
 		self.loadSubscribers()
 
 		#get list of all image files
+		self.updateFileList()
+
+	def updateFileList(self):
+		'''
+		Reads the files in the directory and updates the file list
+		'''
 		self.files = getFilepathsInclSubfolders(FOLDER) if not FROM_DROPBOX else getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK)
+		self.last_update_time
 
 	def languageSupport(self,chat_id,message):
 		'''
@@ -326,6 +339,10 @@ class TelegramBot():
 
 	def echo(self):
 		bot = self.bot
+
+		#check if it is time to update the file list
+		if time() - self.last_update_time > FILE_UPDATE_PERIOD:
+			self.updateFileList()
 
 		#check if it is time to send an image already
 		for i in self.subscribers:
