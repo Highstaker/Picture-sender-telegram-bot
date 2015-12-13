@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,0)
+VERSION_NUMBER = (0,9,1)
 
 import logging
 import telegram
 from os import path, listdir, walk, remove as file_remove
 from random import choice
-from time import time
+from time import time,sleep
 from itertools import chain
 import socket
 import pickle #module for saving dictionaries to file
@@ -132,7 +132,14 @@ def getFilepathsInclSubfoldersDropboxPublic(LINK):
 	'''
 
 	def readDir(LINK,DIR):
-		req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=DIR) )
+		#Set a loop to retry connection if it is refused
+		while True:
+			try:
+				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=DIR) )
+				break
+			except:
+				sleep(60)#wait a bit before retrying
+				pass
 
 		result = []
 		for i in json.loads(req.content.decode())['contents']:
