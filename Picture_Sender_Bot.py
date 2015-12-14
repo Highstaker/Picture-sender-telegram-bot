@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,1)
+VERSION_NUMBER = (0,9,2)
 
 import logging
 import telegram
@@ -133,22 +133,24 @@ def getFilepathsInclSubfoldersDropboxPublic(LINK):
 
 	def readDir(LINK,DIR):
 		#Set a loop to retry connection if it is refused
+		result = []
 		while True:
 			try:
 				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=DIR) )
+
+				for i in json.loads(req.content.decode())['contents']:
+					if i['is_dir']:
+						logging.warning("Reading directory: " + str(i['path']))#debug
+						result += readDir(LINK,i['path'])
+					else:
+						#a file, add to list
+						result += [i['path']]
+
 				break
 			except:
 				sleep(60)#wait a bit before retrying
 				pass
 
-		result = []
-		for i in json.loads(req.content.decode())['contents']:
-			if i['is_dir']:
-				logging.warning("Reading directory: " + str(i['path']))#debug
-				result += readDir(LINK,i['path'])
-			else:
-				#a file, add to list
-				result += [i['path']]
 		return result
 
 	filelist = readDir(LINK,"/")
