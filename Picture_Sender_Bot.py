@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,2)
+VERSION_NUMBER = (0,9,3)
 
 import logging
 import telegram
@@ -67,7 +67,6 @@ MAX_PICTURE_SEND_PERIOD = 86400
 
 #A default send period
 PICTURE_SEND_PERIOD = 600
-# PICTURE_SEND_PERIOD = 5#debug
 
 ABOUT_MESSAGE = """*Random Picture Bot*
 _Created by:_ Highstaker a.k.a. OmniSable.
@@ -192,7 +191,7 @@ class TelegramBot():
 		Reads the files in the directory and updates the file list
 		'''
 		self.files = getFilepathsInclSubfolders(FOLDER) if not FROM_DROPBOX else getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK)
-		self.last_update_time
+		self.last_update_time=time()
 
 	def languageSupport(self,chat_id,message):
 		'''
