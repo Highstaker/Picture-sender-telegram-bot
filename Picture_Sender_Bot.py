@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,3)
+VERSION_NUMBER = (0,9,4)
 
 import logging
 import telegram
@@ -269,8 +269,12 @@ class TelegramBot():
 				pic.seek(0)
 				self.bot.sendPhoto(chat_id=chat_id,photo=pic,caption=caption)
 			except Exception as e:
-				logging.error("Could not send picture. Retrying! Error: " + str(e))
-				continue
+				if ("urlopen error" in str(e)) or ("timed out" in str(e)):
+					logging.error("Could not send message. Retrying! Error: " + str(e))
+					sleep(3)
+					continue
+				else:
+					logging.error("Could not send message. Error: " + str(e))
 			break
 
 	def sendRandomPic(self,chat_id,queue):
