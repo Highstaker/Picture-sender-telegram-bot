@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,4)
+VERSION_NUMBER = (0,9,5)
 
 import logging
 import telegram
@@ -273,9 +273,16 @@ class TelegramBot():
 					logging.error("Could not send message. Retrying! Error: " + str(e))
 					sleep(3)
 					continue
+				elif "IncompleteRead" in str(e):
+					logging.error("IncompleteRead error. Retrying!" + str(e))
+					sleep(1)
+					continue
 				else:
 					logging.error("Could not send message. Error: " + str(e))
 			break
+
+	def sendPicProcess(self,chat_id,pic,caption=None):
+		self.sendPic(chat_id=chat_id,pic=pic,caption=caption)
 
 	def sendRandomPic(self,chat_id,queue):
 		if not FROM_DROPBOX:
@@ -337,6 +344,7 @@ class TelegramBot():
 					meta_req = requests.get(meta_req)
 					metadata = meta_req.content.decode()
 				except:
+					metadata=""
 					pass
 
 			with open(tmp_path, 'wb') as tmppic:
@@ -345,8 +353,25 @@ class TelegramBot():
 
 			with open(tmp_path, 'rb') as pic:
 				#send the file
-				logging.warning("Sending image to " + str(chat_id) + " " + str(pic))
-				self.sendPic(chat_id,pic,caption=metadata)
+				
+				for att in range(3):
+					logging.warning("Attempt " + str(att+1) + " of sending image to " + str(chat_id) + " " + str(pic))
+					p = Process(target=self.sendPicProcess,args=(chat_id,pic,metadata,))
+					p.start()
+
+					#wait 5 seconds then repeat attempt. Exit loop if process has terminated.
+					startTime = time()
+					while time() - startTime < 5:
+						if not p.is_alive():
+							break
+
+					if not p.is_alive():
+						break
+					else:
+						p.terminate()
+				else:
+					self.sendMessage(chat_id=chat_id,text="Failed to send picture. Please try again!")
+
 			# delete temporary file
 			file_remove(tmp_path)
 
@@ -367,7 +392,7 @@ class TelegramBot():
 				if self.processes[chat_id][0].is_alive():
 					#the process is still working
 					self.sendMessage(chat_id=chat_id
-						,text="I'm still sending your picture. Please wait!"
+						,text="I'm still sending you a picture. Please wait!"
 						)
 				else:
 					#the process entry exists but the process is terminated. Very improbable.
