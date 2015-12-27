@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,5)
+VERSION_NUMBER = (0,9,6)
 
 import logging
 import telegram
@@ -317,14 +317,13 @@ class TelegramBot():
 					random_pic_path = choice( self.files )
 					tmp_path = path.join("/tmp/", path.basename(random_pic_path) )
 				#First, get metadata of a file. It contains a direct link to it!
-				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=random_pic_path) )
+				req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=random_pic_path), timeout=10 )
 				if req.ok:
 					#If metadata got grabbed, extract a link to a file and make a downloadable version of it
 					req= json.loads(req.content.decode())['link'].split("?")[0] + "?dl=1"
-
 					#now let's get the file contents
 					try:
-						req=requests.get(req)
+						req=requests.get(req,timeout=30)
 						if req.ok:
 							req= req.content
 							break
@@ -337,15 +336,17 @@ class TelegramBot():
 
 			metadata=""
 			#try to read metadata
-			meta_req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=path.join(path.dirname(random_pic_path),METADATA_FILENAME ) ) )
-			if meta_req.ok:
-				try:
-					meta_req= json.loads(meta_req.content.decode())['link'].split("?")[0] + "?dl=1"
-					meta_req = requests.get(meta_req)
-					metadata = meta_req.content.decode()
-				except:
+			try:
+				meta_req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=DROPBOX_FOLDER_LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=path.join(path.dirname(random_pic_path),METADATA_FILENAME ) ) , timeout=10)
+				if meta_req.ok:
+						meta_req= json.loads(meta_req.content.decode())['link'].split("?")[0] + "?dl=1"
+						meta_req = requests.get(meta_req,timeout=10)
+						metadata = meta_req.content.decode()
+				else:
 					metadata=""
-					pass
+			except:
+				metadata=""
+				pass
 
 			with open(tmp_path, 'wb') as tmppic:
 				#now let's save the file to temporary
