@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #TODO
 
-VERSION_NUMBER = (0,9,6)
+VERSION_NUMBER = (0, 9, 7)
 
 import logging
 import telegram
@@ -93,12 +93,25 @@ To stop receiving pictures, type /unsubscribe
 
 START_MESSAGE = "Welcome! Type /help to get help."
 
+OTHER_BOTS_MESSAGE = """*My other bots*:
+
+@OmniCurrencyExchangeBot: a currency converter bot supporting past rates and graphs.
+
+@multitran\_bot: a Russian-Whichever dictionary with support of 9 languages. Has transcriptions for English words.
+"""
+
 ABOUT_BUTTON = "ℹ️ About"
 HELP_BUTTON = "⁉️" + "Help"
 GIMMEPIC_BUTTON = '🎢' + "Gimme Pic!"
 SUBSCRIBE_BUTTON = '✏️' + "Subscribe"
 UNSUBSCRIBE_BUTTON = '🚫' + "Unsubscribe"
-MAIN_MENU_KEY_MARKUP = [[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],[GIMMEPIC_BUTTON],[ HELP_BUTTON, ABOUT_BUTTON]]
+OTHER_BOTS_BUTTON = "👾 My other bots"
+
+MAIN_MENU_KEY_MARKUP = [
+[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],
+[GIMMEPIC_BUTTON],
+[HELP_BUTTON, ABOUT_BUTTON, OTHER_BOTS_BUTTON]
+]
 
 ################
 ###GLOBALS######
@@ -448,6 +461,10 @@ class TelegramBot():
 			elif message == "/about" or message == ABOUT_BUTTON:
 				self.sendMessage(chat_id=chat_id
 					,text=ABOUT_MESSAGE
+					)
+			elif message == "/otherbots" or message == self.languageSupport(chat_id,OTHER_BOTS_BUTTON):
+				self.sendMessage(chat_id=chat_id
+					,text=self.languageSupport(chat_id,OTHER_BOTS_MESSAGE)
 					)
 			elif message == "/subscribe" or message == SUBSCRIBE_BUTTON:
 				if not chat_id in self.subscribers:
