@@ -35,16 +35,18 @@ class DictUtils:
 class FolderSearch:
 
 	@staticmethod
-	def getFilepathsInclSubfolders(FOLDER):
+	def getFilepathsInclSubfolders(FOLDER, allowed_extensions=None):
 		"""
 		Returns a list of full paths to all files in a folder and subfolders. Follows links!
+		param allowed_extensions: if provided, adds only files with specified extensions
 		"""
 		myFolder = FOLDER
 		fileSet = set()
 
 		for root, dirs, files in walk(myFolder,followlinks=True):
 			for fileName in files:
-				fileSet.add( path.join( root, fileName ))
+				if not allowed_extensions or path.splitext(fileName)[1].replace('.','').lower() in [i.lower() for i in allowed_extensions]:
+					fileSet.add( path.join( root, fileName ))
 		return list(fileSet)
 
 

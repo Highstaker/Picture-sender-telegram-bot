@@ -98,6 +98,25 @@ class UtilsFolderSearchTest(unittest.TestCase):
 		self.assertEqual(len(func_files), 0)
 		self.assertEqual(func_files, [])
 
+	def test_getFilepathsInclSubfolders_filtered(self):
+		files_in = ["test_pics/pic1.png", "test_pics/pic2.jpeg"]
+		files_in = [path.join(path.abspath(SCRIPT_FOLDER), i) for i in files_in]
+
+		files_not_in = ["test_pics/pic3.jpg", "test_pics/002/pic4.jpg"]
+		files_not_in = [path.join(path.abspath(SCRIPT_FOLDER), i) for i in files_not_in]
+
+		func_files = utils.FolderSearch.getFilepathsInclSubfolders(path.join(SCRIPT_FOLDER, "test_pics"),
+																   allowed_extensions=['jpeg','PNG'])
+		self.assertEqual(len(func_files), 2)
+
+		for i in files_in:
+			self.assertIn(i, func_files)
+
+		for i in files_not_in:
+			self.assertNotIn(i, func_files)
+
+
+
 
 from language_support import LanguageSupport
 class LanguageSupportTest(unittest.TestCase):
