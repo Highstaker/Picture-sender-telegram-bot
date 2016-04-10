@@ -7,7 +7,7 @@ import io
 from python_version_check import check_version
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 1)
+VERSION_NUMBER = (1, 0, 3)
 
 import logging
 import telegram
@@ -348,12 +348,11 @@ class MainPicSender():
 
 			return data
 
-		# get list of files
-		files = self.file_db.getFileListPics()
-
 		try:
 			cached_ID, data, random_file = None, None, None
 			while True:
+				# get list of files
+				files = self.file_db.getFileListPics()
 				# pick a file at random
 				random_file = choice(files)
 				# get the ID of a file in Telegram, if present
@@ -375,9 +374,14 @@ class MainPicSender():
 
 				break
 
+
+			# Get the metadata to send with a pic
+			caption = self.file_db.getCaptionPic(random_file)
+
 			# Send the pic and get the message object to store the file ID
 			sent_message = self.bot.sendPic(chat_id=chat_id,
-							 pic=data
+							 pic=data,
+							 caption=caption
 							 )
 
 			if not cached_ID:

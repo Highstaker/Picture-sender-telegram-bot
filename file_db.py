@@ -277,7 +277,7 @@ class FileDB(object):
 
 		try:
 			data = data[0][0]
-		except:
+		except IndexError:
 			data = None
 
 		return data
@@ -291,6 +291,33 @@ class FileDB(object):
 		command = "UPDATE {0} SET file_id=NULL WHERE path='{1}'".format(TABLE_NAME, pth)
 		self._run_command(command)
 
+	def getCaption(self, pth):
+		"""
+		Returns a metadata for a given metadata file from DB.
+		:param pth: path to a *metadata* file
+		:return:
+		"""
+		command = "SELECT meta FROM {0} WHERE path='{1}';".format(TABLE_NAME,pth)
+		data = 	self._run_command(command)
+
+		try:
+			data = data[0][0]
+		except IndexError:
+			data = None
+
+		return data
+
+	def getCaptionPic(self, pth):
+		"""
+		Returns a metadata for a given picture file From DB.
+		Unlike `getCaption`, it gets the folder based on path to pic automatically.
+		:param pth: path to a *picture* file
+		:return:
+		"""
+		pth = path.join(path.dirname(pth), METADATA_FILENAME)
+		data = self.getCaption(pth)
+
+		return data
 
 
 if __name__ == '__main__':
