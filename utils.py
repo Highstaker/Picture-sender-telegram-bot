@@ -83,3 +83,44 @@ class DropboxFolderSearch:
 		filelist = readDir(LINK,"/")
 
 		return filelist
+
+
+class SQLiteUtils:
+
+	@staticmethod
+	def getSQLiteType(param):
+		"""
+		Returns the SQLite type of a given parameter
+		:param param: a parameter a type of which should be returned
+		:return: a string representing an SQLite type
+		"""
+		if isinstance(param, str):
+			result = "TEXT"
+		elif isinstance(param, int):
+			result = "INTEGER"
+		elif isinstance(param,float):
+			result = "DECIMAL"
+		else:
+			result = "BLOB"
+
+		return result
+
+	@staticmethod
+	def escapeText(text):
+		return text.replace("'", "''")
+
+class FileUtils:
+
+	@staticmethod
+	def getModificationTimeUnix(filepath):
+		"""
+		Returns the modification time of a file as Unix time
+		:param filepath:
+		:return:
+		"""
+		try:
+			result = int(path.getmtime(filepath))
+		except FileNotFoundError:
+			result = 0
+
+		return result

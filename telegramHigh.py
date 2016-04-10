@@ -61,6 +61,19 @@ class TelegramHigh:
 			return False
 
 	@staticmethod
+	def messageIsPhoto(message):
+		"""
+		Returns true if the given message is a Photo.
+		:param message: an message object
+		:return: True or False
+		"""
+		try:
+			return bool(message.photo)
+		except AttributeError:
+			return False
+
+
+	@staticmethod
 	def isDocument(update):
 		"""
 		Returns true if the given message is a Document (a File).
@@ -69,6 +82,18 @@ class TelegramHigh:
 		"""
 		try:
 			return bool(update.message.document)
+		except AttributeError:
+			return False
+
+	@staticmethod
+	def messageIsDocument(message):
+		"""
+		Returns true if the given message is a Document (a File).
+		:param message: an message object
+		:return: True or False
+		"""
+		try:
+			return bool(message.document)
 		except AttributeError:
 			return False
 
@@ -198,6 +223,7 @@ class TelegramHigh:
 		:param caption: a text that goes together with picture ina message.
 		:return: None
 		"""
+		sent_message_id = None
 		while True:
 			try:
 				logging.debug("Picture: " + str(pic))
@@ -208,10 +234,15 @@ class TelegramHigh:
 					# It is probably a file
 					pic.seek(0)
 				else:
-					# It is probably a bytestring
-					pic = io.BufferedReader(io.BytesIO(pic))
+					if isinstance(pic, bytes):
+						# It is a bytestring
+						pic = io.BufferedReader(io.BytesIO(pic))
+					else:
+						#a string, probably a file_id. leave as-is
+						pass
 
-				self.bot.sendPhoto(chat_id=chat_id, photo=pic, caption=caption)
+				# Send the picture!
+				sent_message_id = self.bot.sendPhoto(chat_id=chat_id, photo=pic, caption=caption)
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt
 			except AttributeError:
@@ -230,6 +261,7 @@ class TelegramHigh:
 					logging.error(
 							"Could not send photo. Unknown error: " + full_traceback())
 			break
+		return sent_message_id
 
 	def getUpdates(self):
 		"""
@@ -265,6 +297,24 @@ class TelegramHigh:
 			file_id = update.message.photo[photoIndex]['file_id']
 		elif self.isDocument(update):
 			file_id = update.message.document['file_id']
+		else:
+			file_id = ""
+
+		return file_id
+
+	def getFileID_byMesssageObject(self, message, photoIndex=-1):
+		"""
+		Gets the file_id of a file contained in a message. Empty string if there is no file.
+		:param message: message object containing a message.
+		:param photoIndex: a photo message contains a picture in various resolutions.
+		This determines which one should be picked.
+		By default it is the last one, which has the highest resolution.
+		:return: file_id
+		"""
+		if self.messageIsPhoto(message):
+			file_id = message.photo[photoIndex]['file_id']
+		elif self.messageIsDocument(message):
+			file_id = message.document['file_id']
 		else:
 			file_id = ""
 
@@ -459,3 +509,5 @@ if __name__ == '__main__':
 	bot = TelegramHigh(BOT_TOKEN)
 	u = bot.getUpdates()[-1]
 	print(u)
+	file_id = bot.getFileID(u)
+	print(file_id, type(file_id))

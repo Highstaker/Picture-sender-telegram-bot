@@ -5,6 +5,8 @@ import sqlite3
 from os import path
 
 from textual_data import DATABASES_FOLDER_NAME
+from utils import SQLiteUtils
+getSQLiteType = SQLiteUtils.getSQLiteType
 
 # The folder containing the script itself
 SCRIPT_FOLDER = path.dirname(path.realpath(__file__))
@@ -35,22 +37,7 @@ class UserParams(object):
 				#database doesn't exist, create it
 				self.createTable(initial)
 
-	def getSQLiteType(self, param):
-		"""
-		Returns the SQLite type of a given parameter
-		:param param: a parameter a type of which should be returned
-		:return: a string representing an SQLite type
-		"""
-		if isinstance(param, str):
-			result = "TEXT"
-		elif isinstance(param, int):
-			result = "INTEGER"
-		elif isinstance(param,float):
-			result = "DECIMAL"
-		else:
-			result = "BLOB"
 
-		return result
 
 	def _addColumn(self, column, init_data):
 		"""
@@ -59,7 +46,7 @@ class UserParams(object):
 		:param init_data: data to be put in that column. Used to determine the type
 		:return:
 		"""
-		command = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + str(column) + " " + self.getSQLiteType(init_data)
+		command = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + str(column) + " " + getSQLiteType(init_data)
 		try:
 			self._run_command(command)
 		except sqlite3.OperationalError:
@@ -76,7 +63,7 @@ class UserParams(object):
 
 		for i in data.keys():
 			command += "," + i + " "
-			command += self.getSQLiteType(data[i])
+			command += getSQLiteType(data[i])
 
 		command += ");"
 

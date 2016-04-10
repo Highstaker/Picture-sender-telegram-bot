@@ -7,7 +7,7 @@ import io
 from python_version_check import check_version
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 0)
+VERSION_NUMBER = (1, 0, 1)
 
 import logging
 import telegram
@@ -26,6 +26,7 @@ from textual_data import *
 from userparams import UserParams
 from language_support import LanguageSupport
 import utils
+from file_db import FileDB
 
 
 ############
@@ -33,8 +34,7 @@ import utils
 ############
 
 #How often should a file list of images be updated
-FILE_UPDATE_PERIOD = 3
-# FILE_UPDATE_PERIOD = 86400
+FILE_UPDATE_PERIOD = 600
 
 #If true, use dropbox. If false, use local filesystem
 FROM_DROPBOX = False
@@ -52,6 +52,8 @@ INITIAL_SUBSCRIBER_PARAMS = {"lang": "EN",  # bot's langauge
 							 "period": 600,
 							 "last_update_time" : 0
 							 }
+
+
 
 
 MAIN_MENU_KEY_MARKUP = [
@@ -91,8 +93,11 @@ class MainPicSender():
 		super(MainPicSender, self).__init__()
 		self.bot = TelegramHigh(token)
 
-		# self.loadSubscribers()
+		# Initialize user parameters database
 		self.userparams = UserParams("users", initial=INITIAL_SUBSCRIBER_PARAMS)
+
+		# Initialize file database
+		self.file_db = FileDB("files")
 
 		#get list of all image files
 		self.updateFileListThread()
@@ -143,7 +148,7 @@ class MainPicSender():
 				,markdown=True
 				)
 		elif message == "/gimmepic" or message == GIMMEPIC_BUTTON:
-			self.startRandomPicThread(chat_id, self.files)
+			self.startRandomPicThread(chat_id)
 		else:
 			#any other message
 			try:
@@ -186,6 +191,7 @@ class MainPicSender():
 			except ValueError:
 				bot.sendMessage(chat_id=chat_id,
 					message="Unknown command!"
+					,key_markup=MMKM
 					)
 
 	def periodicRoutine(self):
@@ -200,8 +206,8 @@ class MainPicSender():
 		while not self.update_filelist_thread_queue.empty():
 			# update params from thread
 			q = self.update_filelist_thread_queue.get()
-			self.files, self.last_filelist_update_time = q[0], q[1]
-			print("self.files, self.last_filelist_update_time", self.files, self.last_filelist_update_time)#debug
+			self.last_filelist_update_time = q[0]
+			print("self.last_filelist_update_time", self.last_filelist_update_time)#debug
 
 		self.updateFileListThread()
 
@@ -225,33 +231,90 @@ class MainPicSender():
 				pass
 				print("updater already running!")#debug
 
+	def fileToDB(self, filepath):
+		"""
+		Adds or updates a file in the database
+		:param filepath: a full path to a file to process
+		:return:
+		"""
+		file_db = self.file_db
+		# When the file was modified, in Unix time
+		mod_time = utils.FileUtils.getModificationTimeUnix(filepath)
+
+		if path.splitext(filepath)[1].replace(".", "").lower() != "txt":
+			# it's an image
+			if not file_db.fileExists(filepath):
+				file_db.addFile(filepath, mod_time=mod_time)
+			elif mod_time > file_db.getModTime(filepath):
+				#file has updated, invalidate the cached telegram file ID and update the mod time in DB
+				file_db.invalidateCached(filepath)
+				file_db.updateModTime(filepath, mod_time)
+
+		else:
+			# it's a text file
+			if path.basename(filepath) == METADATA_FILENAME:
+				#it's a metadata file
+				dirname = path.dirname(filepath)
+				with open(filepath, 'r') as f:
+					metadata = f.read()
+				if not file_db.fileExists(filepath):
+					# add a folder entry with metadata. Path in DB will be the full path to metadata text file
+					file_db.addMetafile(filepath, metadata)
+				else:
+					file_db.updateMetadata(filepath, metadata)
+
+
+	def checkFilesForDeletion(self, files):
+		"""
+		Checks the database for the presence of files that don't exist anymore.
+		:param files: list of files received from an actual filesystem scan
+		:return:
+		"""
+		file_db = self.file_db
+
+		# Get a list of paths in database
+		DB_files = file_db.getFileList()
+
+		for f in DB_files:
+			if not f in files:
+				file_db.deleteFile(f)
+
+
 	def updateFileList(self):
 		'''
 		THREAD
 		Reads the files in the directory and updates the file list
 		'''
-		files = utils.FolderSearch.getFilepathsInclSubfolders(PIC_FOLDER)
+		files = utils.FolderSearch.getFilepathsInclSubfolders(PIC_FOLDER, allowed_extensions=["txt","png","jpg","jpeg"])
 			# if not FROM_DROPBOX \
 			# else getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK)
 
+		# Add or update files to DB
+		for i in files:
+			self.fileToDB(i)
+
+		# Delete files that no longer exist from DB
+		self.checkFilesForDeletion(files)
+
 		# Update the time
 		last_filelist_update_time=time()
+
 		# sleep(5)#debug
 		print("file list got!")#debug
 		print("files", files)#debug
 		print("last_filelist_update_time",last_filelist_update_time)
 
 		# Put results to queue
-		self.update_filelist_thread_queue.put((files,last_filelist_update_time,))
+		self.update_filelist_thread_queue.put((last_filelist_update_time,))
 
-	def startRandomPicThread(self, chat_id, files):
+	def startRandomPicThread(self, chat_id):
 		"""
 		Starts a random pic sending thread
 		:param chat_id:
 		:return:
 		"""
 		def startThread(chat_id):
-			t = Thread(target=self.sendRandomPic, args=(chat_id,files,))
+			t = Thread(target=self.sendRandomPic, args=(chat_id,))
 			self.pic_sender_threads[chat_id] = t
 			t.start()
 
@@ -267,11 +330,10 @@ class MainPicSender():
 			# If there was never a thread for this user, start it.
 			startThread(chat_id)
 
-	def sendRandomPic(self, chat_id, files):
+	def sendRandomPic(self, chat_id):
 		"""
 		THREAD
 		Sends a random picture from a file list to a user.
-		:param files: Files to pick from
 		:param chat_id:
 		:return:
 		"""
@@ -286,13 +348,45 @@ class MainPicSender():
 
 			return data
 
-		try:
-			# We will send a bytestring
-			data = getLocalFile(choice(files))
+		# get list of files
+		files = self.file_db.getFileListPics()
 
-			self.bot.sendPic(chat_id=chat_id,
+		try:
+			cached_ID, data, random_file = None, None, None
+			while True:
+				# pick a file at random
+				random_file = choice(files)
+				# get the ID of a file in Telegram, if present
+				cached_ID = self.file_db.getFileCacheID(random_file)
+
+				if not cached_ID:
+					# if file is not cached in Telegram
+					try:
+						# We will send a bytestring
+						data = getLocalFile(random_file)
+						print("Not cached, getting a local file!")#debug
+					except FileNotFoundError:
+						#File still exists in the DB, but is gone for real. Try another file.
+						continue
+				else:
+					# file is cached, use resending of cache
+					data = cached_ID
+					print("Cached, sending cached file!")
+
+				break
+
+			# Send the pic and get the message object to store the file ID
+			sent_message = self.bot.sendPic(chat_id=chat_id,
 							 pic=data
 							 )
+
+			if not cached_ID:
+				print("sent_message",sent_message, type(sent_message))#debug
+				file_id = self.bot.getFileID_byMesssageObject(sent_message)
+				print("Assigning cache!", file_id)#debug
+				self.file_db.updateCacheID(random_file, file_id)
+
+
 		except IndexError:
 			self.bot.sendMessage(chat_id=chat_id,
 								 message="Sorry, no pictures were found!"
