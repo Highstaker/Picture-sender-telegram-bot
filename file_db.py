@@ -169,7 +169,7 @@ class FileDB(object):
 		else:
 			print("updateModTime: file doesn't exist!")
 
-	def addMetafile(self, pth, metadata):
+	def addMetafile(self, pth, metadata, mod_time):
 		"""
 		Adds metadata entry
 		:param pth: path to a metadata file
@@ -178,14 +178,16 @@ class FileDB(object):
 		"""
 
 		if not self.fileExists(pth):
-			command = "INSERT INTO {0} (type, path, meta) VALUES (1, '{1}', '{2}');".format(TABLE_NAME, pth,
-																			utils.SQLiteUtils.escapeText(metadata)
+			command = "INSERT INTO {0} (type, path, meta, mod_time) VALUES (1, '{1}', '{2}', '{3}');".format(TABLE_NAME,
+																			pth,
+																			utils.SQLiteUtils.escapeText(metadata),
+																			mod_time
 																			)
 			self._run_command(command)
 		else:
 			print("addMetafile: Meta File already exists!")#debug
 
-	def updateMetadata(self, pth, metadata):
+	def updateMetadata(self, pth, metadata, mod_time):
 		"""
 		Updates metadata for a folder
 		:param pth: path to a metadata file
@@ -193,9 +195,10 @@ class FileDB(object):
 		:return:
 		"""
 		if self.fileExists(pth):
-			command = "UPDATE {0} SET meta='{1}' WHERE path='{2}';".format(TABLE_NAME,
+			command = "UPDATE {0} SET meta='{1}', mod_time='{3}' WHERE path='{2}';".format(TABLE_NAME,
 																		utils.SQLiteUtils.escapeText(metadata),
-																		pth)
+																		pth,
+																		mod_time)
 			self._run_command(command)
 		else:
 			print("updateMetadata: file doesn't exist!")#debug
@@ -337,12 +340,12 @@ if __name__ == '__main__':
 	print(db.getModTime("/abc/001.jpg"))#42000
 	print(db.getModTime("/abc/404.jpg"))#None
 
-	db.addMetafile(path.join("/abc/", METADATA_FILENAME), "Nothing\nReally,nothing!")
+	db.addMetafile(path.join("/abc/", METADATA_FILENAME), "Nothing\nReally,nothing!", 3333)
 	print(db.getMetadata(path.join("/abc/", METADATA_FILENAME)))#Nothing really
-	db.updateMetadata(path.join("/abc/", METADATA_FILENAME), "Something\nSomething already!")
+	db.updateMetadata(path.join("/abc/", METADATA_FILENAME), "Something\nSomething already!", 9999)
 	print(db.getMetadata(path.join("/abc/", METADATA_FILENAME)))#Something already!
 	db.addMetafile(path.join("/xyz/", METADATA_FILENAME),
-				"""ejeaotun.w"n65wnn.w6wiá9uy4w'w45mn5Øo4bu..ehe\nwgH\tehbae\reaiomb""")
+				"""ejeaotun.w"n65wnn.w6wiá9uy4w'w45mn5Øo4bu..ehe\nwgH\tehbae\reaiomb""", 11111)
 	print(db.getMetadata(path.join("/xyz/", METADATA_FILENAME)))#gibberish
 
 	print(db.getMetadata(path.join("/ac/", METADATA_FILENAME)))#None
@@ -364,4 +367,4 @@ if __name__ == '__main__':
 	print(db.getFileListPics())#returns only pictures. No metadata files
 
 	# Remove the test DB file
-	os.remove(db.getDBFilename())
+	# os.remove(db.getDBFilename())

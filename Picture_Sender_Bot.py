@@ -5,9 +5,10 @@
 import io
 
 from python_version_check import check_version
+
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 3)
+VERSION_NUMBER = (1, 0, 4)
 
 import logging
 import telegram
@@ -21,6 +22,7 @@ import requests, json
 from threading import Thread
 from queue import Queue
 
+from traceback_printer import full_traceback
 from telegramHigh import TelegramHigh
 from textual_data import *
 from userparams import UserParams
@@ -37,7 +39,7 @@ from file_db import FileDB
 FILE_UPDATE_PERIOD = 600
 
 #If true, use dropbox. If false, use local filesystem
-FROM_DROPBOX = False
+FROM_DROPBOX = True
 
 #A minimum and maximum picture sending period a user can set
 MIN_PICTURE_SEND_PERIOD = 60
@@ -231,15 +233,16 @@ class MainPicSender():
 				pass
 				print("updater already running!")#debug
 
-	def fileToDB(self, filepath):
+	def fileToDB(self, filepath, mod_time):
 		"""
 		Adds or updates a file in the database
+		:param mod_time: When the real file was modified, in Unix time
 		:param filepath: a full path to a file to process
 		:return:
 		"""
 		file_db = self.file_db
-		# When the file was modified, in Unix time
-		mod_time = utils.FileUtils.getModificationTimeUnix(filepath)
+
+		# print("fileToDB", filepath, mod_time)#debug
 
 		if path.splitext(filepath)[1].replace(".", "").lower() != "txt":
 			# it's an image
@@ -249,19 +252,29 @@ class MainPicSender():
 				#file has updated, invalidate the cached telegram file ID and update the mod time in DB
 				file_db.invalidateCached(filepath)
 				file_db.updateModTime(filepath, mod_time)
-
 		else:
+			#TODO: read metadata from dropbox
 			# it's a text file
 			if path.basename(filepath) == METADATA_FILENAME:
 				#it's a metadata file
-				dirname = path.dirname(filepath)
-				with open(filepath, 'r') as f:
-					metadata = f.read()
+				def getMetadata():
+					# Update the obsolete metadata
+					metadata = ""
+					try:
+						if not FROM_DROPBOX:
+							with open(filepath, 'r') as f:
+								metadata = f.read()
+						else:
+							metadata = self.getDropboxFile(filepath).decode()
+							print("Dropbox metadata", metadata)#debug
+					except Exception as e:
+						logging.error("Could not read metafile!", full_traceback())
+					return metadata
 				if not file_db.fileExists(filepath):
 					# add a folder entry with metadata. Path in DB will be the full path to metadata text file
-					file_db.addMetafile(filepath, metadata)
-				else:
-					file_db.updateMetadata(filepath, metadata)
+					file_db.addMetafile(filepath, getMetadata(), mod_time)
+				elif mod_time > file_db.getModTime(filepath):
+					file_db.updateMetadata(filepath, getMetadata(), mod_time)
 
 
 	def checkFilesForDeletion(self, files):
@@ -285,13 +298,32 @@ class MainPicSender():
 		THREAD
 		Reads the files in the directory and updates the file list
 		'''
-		files = utils.FolderSearch.getFilepathsInclSubfolders(PIC_FOLDER, allowed_extensions=["txt","png","jpg","jpeg"])
-			# if not FROM_DROPBOX \
-			# else getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK)
+
+		if not FROM_DROPBOX:
+			# list of filepaths
+			files = utils.FolderSearch.getFilepathsInclSubfolders(PIC_FOLDER, allowed_extensions=["txt","png","jpg","jpeg"])
+
+			# When the file was modified, in Unix time
+			# list of tuples (filepath, mod_time)
+			files_and_mods = list(zip(files,
+				[utils.FileUtils.getModificationTimeUnix(f) for f in files]
+			))
+		else:
+			files_and_mods = utils.DropboxFolderSearch.getFilepathsInclSubfoldersDropboxPublic(DROPBOX_FOLDER_LINK,
+																							   DROPBOX_APP_KEY,
+																							   DROPBOX_SECRET_KEY,
+																							   unixify_mod_time=True
+																							   )
+			files = [i[0] for i in files_and_mods]
+
+		print("files_and_mods",files_and_mods)#debug
+
+
 
 		# Add or update files to DB
-		for i in files:
-			self.fileToDB(i)
+		for i in files_and_mods:
+			print(i)#debug
+			self.fileToDB(i[0], i[1])
 
 		# Delete files that no longer exist from DB
 		self.checkFilesForDeletion(files)
@@ -302,10 +334,40 @@ class MainPicSender():
 		# sleep(5)#debug
 		print("file list got!")#debug
 		print("files", files)#debug
-		print("last_filelist_update_time",last_filelist_update_time)
+		print("last_filelist_update_time",last_filelist_update_time)#debug
 
 		# Put results to queue
 		self.update_filelist_thread_queue.put((last_filelist_update_time,))
+
+	@staticmethod
+	def getDropboxFile(filepath):
+		"""
+		Gets the data from a file in Dropbox
+		:param filepath: path to a file in Dropbox
+		:return:  bytestring containing data from file
+		"""
+		data = None
+		# First, get metadata of a file. It contains a direct link to it!
+		req=requests.post('https://api.dropbox.com/1/metadata/link',
+						  data=dict( link=DROPBOX_FOLDER_LINK,
+									 client_id=DROPBOX_APP_KEY,
+									 client_secret=DROPBOX_SECRET_KEY,
+									 path=filepath), timeout=5 )
+		if req.ok:
+			# If metadata got grabbed, extract a link to a file and make a downloadable version of it
+			req= json.loads(req.content.decode())['link'].split("?")[0] + "?dl=1"
+			# Now let's get the file contents
+			try:
+				req=requests.get(req, timeout=5)
+				if req.ok:
+					data = req.content
+			except:
+				data = None
+		else:
+			#handle absence of file (maybe got deleted?)
+			data = None
+
+		return data
 
 	def startRandomPicThread(self, chat_id):
 		"""
@@ -348,6 +410,7 @@ class MainPicSender():
 
 			return data
 
+
 		try:
 			cached_ID, data, random_file = None, None, None
 			while True:
@@ -362,9 +425,16 @@ class MainPicSender():
 					# if file is not cached in Telegram
 					try:
 						# We will send a bytestring
-						data = getLocalFile(random_file)
-						print("Not cached, getting a local file!")#debug
-					except FileNotFoundError:
+						if not FROM_DROPBOX:
+							data = getLocalFile(random_file)
+							print("Not cached, getting a local file!")#debug
+						else:
+							# data = None
+							print("Not cached, getting a file from Dropbox!")#debug
+							data = self.getDropboxFile(random_file)
+
+					except Exception as e:
+						logging.error("Error reading file!" + full_traceback())
 						#File still exists in the DB, but is gone for real. Try another file.
 						continue
 				else:
@@ -380,11 +450,14 @@ class MainPicSender():
 
 			# Send the pic and get the message object to store the file ID
 			sent_message = self.bot.sendPic(chat_id=chat_id,
-							 pic=data,
-							 caption=caption
-							 )
-
-			if not cached_ID:
+							pic=data,
+							caption=caption
+							)
+			if sent_message == None:
+				self.bot.sendMessage(chat_id=chat_id,
+								 message="Error sending image! Please, try again!"
+								 )
+			elif not cached_ID:
 				print("sent_message",sent_message, type(sent_message))#debug
 				file_id = self.bot.getFileID_byMesssageObject(sent_message)
 				print("Assigning cache!", file_id)#debug

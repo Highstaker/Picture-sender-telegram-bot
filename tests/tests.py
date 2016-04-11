@@ -11,11 +11,16 @@ SCRIPT_FOLDER = path.dirname(path.realpath(__file__))
 sys.path.append(path.dirname(SCRIPT_FOLDER))
 print("sys.path",sys.path)
 
+from textual_data import *
+
 # A flag. If set to True, runs the tests that use Telegram
 USER_TEST = False
 
 # A flag. If set to True, the tests that require user's participation are run
 USER_INTERACTION_TEST = False
+
+# A flag. Runs Dropbox tests if True
+DROPBOX_TEST = False
 
 import utils
 class UtilsDictUtilsTest(unittest.TestCase):
@@ -88,7 +93,7 @@ class UtilsFolderSearchTest(unittest.TestCase):
 		files = ["test_pics/pic1.png", "test_pics/pic2.jpeg", "test_pics/pic3.jpg", "test_pics/002/pic4.jpg"]
 		files = [path.join(path.abspath(SCRIPT_FOLDER), i) for i in files]
 
-		self.assertEqual(len(func_files), 4)
+		self.assertEqual(len(func_files), 5)
 
 		for i in files:
 			self.assertIn(i,func_files)
@@ -115,7 +120,29 @@ class UtilsFolderSearchTest(unittest.TestCase):
 		for i in files_not_in:
 			self.assertNotIn(i, func_files)
 
+class UtilsDropboxFolderSearchTest(unittest.TestCase):
 
+	def __init__(self,dunno):
+		super(UtilsDropboxFolderSearchTest, self).__init__(dunno)
+
+		with open(path.join(path.dirname(SCRIPT_FOLDER), DROPBOX_TOKEN_FILENAME), 'r')as f:
+			data = f.read().split("\n")
+			self.DROPBOX_APP_KEY = data[0]
+			self.DROPBOX_SECRET_KEY = data[1]
+
+		with open(path.join(path.dirname(SCRIPT_FOLDER), DROPBOX_FOLDER_LINK_FILENAME), 'r')as f:
+			data = f.read().split("\n")
+			self.DB_LINK = data[0]
+
+	def test_DropboxFolderSearch(self):
+		if DROPBOX_TEST:
+			dfs = utils.DropboxFolderSearch.getFilepathsInclSubfoldersDropboxPublic(
+				self.DB_LINK,
+				self.DROPBOX_APP_KEY,
+				self.DROPBOX_SECRET_KEY
+				)
+			print("dfs", dfs)
+			self.assertTrue(dfs)
 
 
 from language_support import LanguageSupport

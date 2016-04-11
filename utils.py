@@ -1,6 +1,16 @@
 #!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
 from os import path, walk
+from time import sleep
+from calendar import timegm
+import requests
+import json
+import datetime
+
+from traceback_printer import full_traceback
+from logging_handler import LoggingHandler
+logging = LoggingHandler
+
 
 class DictUtils:
 	@staticmethod
@@ -53,28 +63,67 @@ class FolderSearch:
 class DropboxFolderSearch:
 
 	@staticmethod
-	def getFilepathsInclSubfoldersDropboxPublic(LINK):
+	def getFilepathsInclSubfoldersDropboxPublic(LINK, DROPBOX_APP_KEY, DROPBOX_SECRET_KEY, unixify_mod_time=True):
 		'''
 		Returns a list of full paths to all files in a public folder (provided with a link) and subfolders in Dropbox
+		:param unixify_mod_time: if True, file modification time is returned as Unix time integer.
+		Else, the format is 'Wed, 07 Oct 2015 13:22:49 +0000'
+		:param DROPBOX_APP_KEY:
+		:param DROPBOX_SECRET_KEY:
+		:param LINK: link to a public folder in Dropbox
+		:return: (filepath,modification time) tuple. Modification time in format 'Wed, 07 Oct 2015 13:22:49 +0000'
 		'''
 
-		def readDir(LINK,DIR):
+		def readDir(LINK, DIR):
+
+			def unixify_date(d):
+				MONTHS = {"Jan": "01",
+						  "Feb": "02",
+						  "Mar": "03",
+						  "Apr": "04",
+						  "May": "05",
+						  "Jun": "06",
+						  "Jul": "07",
+						  "Aug": "08",
+						  "Sep": "09",
+						  "Oct": "10",
+						  "Nov": "11",
+						  "Dec": "12"
+						  }
+				d = d.split(",")[1].strip(" ")
+				for i in MONTHS.keys():
+					d = d.replace(i, MONTHS[i])
+
+				result = timegm(datetime.datetime.strptime(d, "%d %m %Y %H:%M:%S %z").timetuple())
+				# print(result)#debug
+				return result
+
 			#Set a loop to retry connection if it is refused
 			result = []
 			while True:
 				try:
-					req=requests.post('https://api.dropbox.com/1/metadata/link',data=dict( link=LINK, client_id=DROPBOX_APP_KEY,client_secret=DROPBOX_SECRET_KEY, path=DIR) )
+					req=requests.post('https://api.dropbox.com/1/metadata/link',
+									  data=dict( link=LINK, client_id=DROPBOX_APP_KEY,
+												 client_secret=DROPBOX_SECRET_KEY, path=DIR) )
+
+					if not req.ok:
+						print("Retrying! req.status_code", req.status_code)#debug
+						continue
 
 					for i in json.loads(req.content.decode())['contents']:
 						if i['is_dir']:
-							logging.warning("Reading directory: " + str(i['path']))#debug
+							logging.warning("Reading directory: " + str(i['path']))
 							result += readDir(LINK,i['path'])
 						else:
 							#a file, add to list
-							result += [i['path']]
+							if unixify_mod_time:
+								result += [(i['path'], unixify_date(i['modified']),)]
+							else:
+								result += [(i['path'], i['modified'],)]
 
 					break
-				except:
+				except Exception as e:
+					print("Dropbox error:" + full_traceback())
 					sleep(60)#wait a bit before retrying
 					pass
 
