@@ -111,6 +111,20 @@ class UserParams(object):
 				+ " WHERE chat_id=" + str(chat_id) + ";"
 		self._run_command(command)
 
+	def getAllEntries(self, fields=()):
+		"""
+		Returns all entries with provided fields
+		:param fields: a list of fields to return
+		:return:
+		"""
+		data = None
+		if fields:
+			command = "SELECT {0} FROM {1}".format(",".join(fields),TABLE_NAME)
+			data = self._run_command(command)
+
+		return data
+
+
 	def _run_command(self, command):
 		"""
 		Runs a given command and returns the output.
@@ -145,3 +159,4 @@ if __name__ == '__main__':
 	U.setEntry(125,"comment","BWHAHAHA")
 	U.setEntry(124,"input_mode",2)
 	U.setEntry(125,"input_mode",0)
+	print(U.getAllEntries(fields=["input_mode","chat_id","lang"]))

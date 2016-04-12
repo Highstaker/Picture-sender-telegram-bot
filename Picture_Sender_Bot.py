@@ -8,7 +8,7 @@ from python_version_check import check_version
 
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 4)
+VERSION_NUMBER = (1, 0, 5)
 
 import logging
 import telegram
@@ -42,7 +42,7 @@ FILE_UPDATE_PERIOD = 600
 FROM_DROPBOX = True
 
 #A minimum and maximum picture sending period a user can set
-MIN_PICTURE_SEND_PERIOD = 60
+MIN_PICTURE_SEND_PERIOD = 1
 MAX_PICTURE_SEND_PERIOD = 86400
 
 #A default send period
@@ -50,8 +50,8 @@ PICTURE_SEND_PERIOD = 600
 
 
 INITIAL_SUBSCRIBER_PARAMS = {"lang": "EN",  # bot's langauge
-							 "subscribed": 0, # is the user subscribed
-							 "period": 600,
+							 "subscribed": 0, # has the user subscribed?
+							 "period": PICTURE_SEND_PERIOD,
 							 "last_update_time" : 0
 							 }
 
@@ -149,6 +149,39 @@ class MainPicSender():
 				,key_markup=MMKM
 				,markdown=True
 				)
+		elif message == "/subscribe" or message == SUBSCRIBE_BUTTON:
+			period = self.userparams.getEntry(chat_id, "period")
+			if self.userparams.getEntry(chat_id, "subscribed") == 0:
+				self.userparams.setEntry(chat_id, "subscribed", 1)
+				self.userparams.setEntry(chat_id, "last_update_time", time())
+
+				bot.sendMessage(chat_id=chat_id,
+					message="""You're subscribed now! 
+An image will be sent to you every {0} seconds. 
+To cancel subscription enter /unsubscribe. 
+To change the period of picture sending type a number.""".format(period),
+					key_markup=MMKM
+					)
+			else:
+				bot.sendMessage(chat_id=chat_id,
+					message="""You have already subscribed!
+To cancel subscription enter /unsubscribe.
+To change the period of picture sending type a number.
+Your current period is {0} seconds.""".format(period),
+					key_markup=MMKM
+					)
+		elif message == "/unsubscribe" or message == UNSUBSCRIBE_BUTTON:
+			if self.userparams.getEntry(chat_id, "subscribed") == 1:
+				self.userparams.setEntry(chat_id, "subscribed", 0)
+				bot.sendMessage(chat_id=chat_id,
+					message="You have unsubscribed. To subscribe again type /subscribe",
+					key_markup=MMKM
+					)
+			else:
+				bot.sendMessage(chat_id=chat_id,
+					message="You haven't subscribed yet! To subscribe type /subscribe",
+					key_markup=MMKM
+					)
 		elif message == "/gimmepic" or message == GIMMEPIC_BUTTON:
 			self.startRandomPicThread(chat_id)
 		else:
@@ -187,7 +220,8 @@ class MainPicSender():
 							,key_markup=MMKM
 							)
 
-					self.userparams.setEntry(chat_id, "period", int(time()))
+					# Reset timer
+					self.userparams.setEntry(chat_id, "last_update_time", int(time()))
 
 			#user has sent a bullsh*t command
 			except ValueError:
@@ -213,7 +247,21 @@ class MainPicSender():
 
 		self.updateFileListThread()
 
-		# Clean up finished pic sender threads
+		# TODO:Clean up finished pic sender threads
+
+		# subscription handling
+		for user in self.userparams.getAllEntries(fields=["subscribed","period","last_update_time","chat_id"]):
+			if user[0] == 1:
+				# user is subscribed
+				cur_time = time()
+				if (cur_time - user[2]) > user[1]:
+					# The time has come for this user (heh, sounds intimidating)
+					self.startRandomPicThread(user[3])
+					# Reset the timer
+					self.userparams.setEntry(user[3],"last_update_time", cur_time)
+
+
+
 
 	def updateFileListThread(self):
 		'''
@@ -372,7 +420,7 @@ class MainPicSender():
 	def startRandomPicThread(self, chat_id):
 		"""
 		Starts a random pic sending thread
-		:param chat_id:
+		:param chat_id: a user to send pic to
 		:return:
 		"""
 		def startThread(chat_id):
