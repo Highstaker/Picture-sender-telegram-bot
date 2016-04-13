@@ -337,7 +337,7 @@ class TelegramHighTest(unittest.TestCase):
 										  pic=open("test_pics/ppppp.jpg", 'rb'), caption="lol"))
 
 	def test_sendPic_badFileID(self):
-		if USER_TEST or True:
+		if USER_TEST:
 			bot = TelegramHigh(self.BOT_TOKEN)
 
 			self.assertRaisesRegex(Exception,

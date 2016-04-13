@@ -144,6 +144,15 @@ class TelegramHigh:
 
 		return broken
 
+	@staticmethod
+	def markup(m, keyboard_short=True):
+		if not m:
+			return telegram.ReplyKeyboardHide()
+		elif m == "SAME":
+			return None
+		else:
+			return telegram.ReplyKeyboardMarkup(m, resize_keyboard=keyboard_short)
+
 	def sendMessage(self, chat_id, message, key_markup="SAME", keyboard_short=True, preview=True, markdown=None, reply_to=None):
 		"""
 		Sends a text message to Telegram user
@@ -161,13 +170,6 @@ class TelegramHigh:
 		:param reply_to: An id of an existing message. A sent message will be a reply to that message.
 		:return: None
 		"""
-		def markup(m):
-			if not m:
-				return telegram.ReplyKeyboardHide()
-			elif m == "SAME":
-				return None
-			else:
-				return telegram.ReplyKeyboardMarkup(m, resize_keyboard=keyboard_short)
 
 		markdown_mode = None
 		if markdown == "html":
@@ -183,7 +185,7 @@ class TelegramHigh:
 					text=text,
 					parse_mode=markdown_mode,
 					disable_web_page_preview=(not preview),
-					reply_markup=markup(key_markup),
+					reply_markup=self.markup(key_markup, keyboard_short=keyboard_short),
 					reply_to_message_id=reply_to
 					)
 
@@ -215,7 +217,7 @@ class TelegramHigh:
 								"Could not send message. Error: " + full_traceback())
 				break
 
-	def sendPic(self, chat_id, pic, caption=None):
+	def sendPic(self, chat_id, pic, caption=None, key_markup="SAME", keyboard_short=True):
 		"""
 		Sends a picture in a Telegram message to a user. Retries if fails.
 		:param chat_id: ID of chat
@@ -242,7 +244,8 @@ class TelegramHigh:
 						pass
 
 				# Send the picture!
-				sent_message_id = self.bot.sendPhoto(chat_id=chat_id, photo=pic, caption=caption)
+				sent_message_id = self.bot.sendPhoto(chat_id=chat_id, photo=pic, caption=caption,
+													 reply_markup=self.markup(key_markup, keyboard_short=keyboard_short))
 			except telegram.error.NetworkError as e:
 				print(str(e), full_traceback())#debug
 				raise Exception("Network error!")

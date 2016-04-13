@@ -56,10 +56,11 @@ START_MESSAGE = "Welcome! Type /help to get help."
 
 ABOUT_BUTTON = "ℹ️ About"
 HELP_BUTTON = "⁉️" + "Help"
+OTHER_BOTS_BUTTON = "👾 My other bots"
 GIMMEPIC_BUTTON = '🎢' + "Gimme Pic!"
 SUBSCRIBE_BUTTON = '✏️' + "Subscribe"
 UNSUBSCRIBE_BUTTON = '🚫' + "Unsubscribe"
-OTHER_BOTS_BUTTON = "👾 My other bots"
+SHOW_PERIOD_BUTTON = "⏲" + "Show period"
 
 ##################
 # BIG TEXTS#######

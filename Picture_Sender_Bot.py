@@ -2,22 +2,14 @@
 # -*- coding: utf-8 -*-
 
 #check if the version of Python is correct
-import io
-
 from python_version_check import check_version
-
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 6)
+VERSION_NUMBER = (1, 0, 7)
 
 import logging
-import telegram
-from os import path, listdir, walk, remove as file_remove
 from random import choice
-from time import time, sleep
-from itertools import chain
-import socket
-import pickle #module for saving dictionaries to file
+from time import time
 import requests, json
 from threading import Thread
 from queue import Queue
@@ -29,6 +21,7 @@ from userparams import UserParams
 from language_support import LanguageSupport
 import utils
 from file_db import FileDB
+from button_handler import getMainMenu
 
 
 ############
@@ -39,10 +32,10 @@ from file_db import FileDB
 FILE_UPDATE_PERIOD = 600
 
 #If true, use dropbox. If false, use local filesystem
-FROM_DROPBOX = False
+FROM_DROPBOX = True
 
 #A minimum and maximum picture sending period a user can set
-MIN_PICTURE_SEND_PERIOD = 1
+MIN_PICTURE_SEND_PERIOD = 60
 MAX_PICTURE_SEND_PERIOD = 86400
 
 #A default send period
@@ -55,14 +48,6 @@ INITIAL_SUBSCRIBER_PARAMS = {"lang": "EN",  # bot's langauge
 							 "last_update_time" : 0
 							 }
 
-
-
-
-MAIN_MENU_KEY_MARKUP = [
-[SUBSCRIBE_BUTTON,UNSUBSCRIBE_BUTTON],
-[GIMMEPIC_BUTTON],
-[HELP_BUTTON, ABOUT_BUTTON, OTHER_BOTS_BUTTON]
-]
 
 ################
 ###GLOBALS######
@@ -121,7 +106,7 @@ class MainPicSender():
 		LS = LanguageSupport(subs.getEntry(chat_id=chat_id, param="lang"))
 		lS = LS.languageSupport
 		allv = LS.allVariants
-		MMKM = lS(MAIN_MENU_KEY_MARKUP)
+		MMKM = lS(getMainMenu(subs.getEntry(chat_id=chat_id, param="subscribed")))
 
 		if message == "/start":
 			bot.sendMessage(chat_id=chat_id
@@ -146,11 +131,19 @@ class MainPicSender():
 				,key_markup=MMKM
 				,markdown=True
 				)
+		elif message == "/period" or message == lS(SHOW_PERIOD_BUTTON):
+			period = self.userparams.getEntry(chat_id, "period")
+
+			bot.sendMessage(chat_id=chat_id,
+					message="""An image is sent to you every {0} seconds.""".format(period),
+					key_markup=MMKM
+							)
 		elif message == "/subscribe" or message == SUBSCRIBE_BUTTON:
 			period = self.userparams.getEntry(chat_id, "period")
 			if self.userparams.getEntry(chat_id, "subscribed") == 0:
 				self.userparams.setEntry(chat_id, "subscribed", 1)
 				self.userparams.setEntry(chat_id, "last_update_time", time())
+				MMKM = getMainMenu(subscribed=True)
 
 				bot.sendMessage(chat_id=chat_id,
 					message="""You're subscribed now! 
@@ -170,6 +163,8 @@ Your current period is {0} seconds.""".format(period),
 		elif message == "/unsubscribe" or message == UNSUBSCRIBE_BUTTON:
 			if self.userparams.getEntry(chat_id, "subscribed") == 1:
 				self.userparams.setEntry(chat_id, "subscribed", 0)
+				MMKM = getMainMenu(subscribed=False)
+
 				bot.sendMessage(chat_id=chat_id,
 					message="You have unsubscribed. To subscribe again type /subscribe",
 					key_markup=MMKM
@@ -180,7 +175,7 @@ Your current period is {0} seconds.""".format(period),
 					key_markup=MMKM
 					)
 		elif message == "/gimmepic" or message == GIMMEPIC_BUTTON:
-			self.startRandomPicThread(chat_id)
+			self.startRandomPicThread(chat_id, MMKM)
 		else:
 			#any other message
 			try:
@@ -253,7 +248,7 @@ Your current period is {0} seconds.""".format(period),
 				cur_time = time()
 				if (cur_time - user[2]) > user[1]:
 					# The time has come for this user (heh, sounds intimidating)
-					self.startRandomPicThread(user[3])
+					self.startRandomPicThread(user[3], MMKM=getMainMenu(True))
 					# Reset the timer
 					self.userparams.setEntry(user[3],"last_update_time", cur_time)
 
@@ -414,14 +409,14 @@ Your current period is {0} seconds.""".format(period),
 
 		return data
 
-	def startRandomPicThread(self, chat_id):
+	def startRandomPicThread(self, chat_id, MMKM):
 		"""
 		Starts a random pic sending thread
 		:param chat_id: a user to send pic to
 		:return:
 		"""
 		def startThread(chat_id):
-			t = Thread(target=self.sendRandomPic, args=(chat_id,))
+			t = Thread(target=self.sendRandomPic, args=(chat_id, MMKM,))
 			self.pic_sender_threads[chat_id] = t
 			t.start()
 
@@ -437,7 +432,7 @@ Your current period is {0} seconds.""".format(period),
 			# If there was never a thread for this user, start it.
 			startThread(chat_id)
 
-	def sendRandomPic(self, chat_id):
+	def sendRandomPic(self, chat_id, MMKM):
 		"""
 		THREAD
 		Sends a random picture from a file list to a user.
@@ -466,8 +461,9 @@ Your current period is {0} seconds.""".format(period),
 			except IndexError:
 				# DB is empty. Exit the function
 				self.bot.sendMessage(chat_id=chat_id,
-									 message="Sorry, no pictures were found!"
-									 )
+									message="Sorry, no pictures were found!",
+									key_markup=MMKM
+									)
 				return
 
 			# get the ID of a file in Telegram, if present
@@ -501,7 +497,8 @@ Your current period is {0} seconds.""".format(period),
 					# Send the pic and get the message object to store the file ID
 					sent_message = self.bot.sendPic(chat_id=chat_id,
 									pic=data,
-									caption=caption
+									caption=caption,
+									key_markup=MMKM
 									)
 					# print("sent_message", sent_message)#debug
 					break
@@ -523,8 +520,9 @@ Your current period is {0} seconds.""".format(period),
 
 		if sent_message == None:
 			self.bot.sendMessage(chat_id=chat_id,
-							 message="Error sending image! Please, try again!"
-							 )
+								message="Error sending image! Please, try again!",
+								key_markup=MMKM
+							)
 		elif not cached_ID:
 			print("sent_message",sent_message, type(sent_message))#debug
 			file_id = self.bot.getFileID_byMesssageObject(sent_message)
