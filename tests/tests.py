@@ -336,6 +336,22 @@ class TelegramHighTest(unittest.TestCase):
 							  bot.sendPic(chat_id=self.chat_id,
 										  pic=open("test_pics/ppppp.jpg", 'rb'), caption="lol"))
 
+	def test_sendPic_badFileID(self):
+		if USER_TEST or True:
+			bot = TelegramHigh(self.BOT_TOKEN)
+
+			self.assertRaisesRegex(Exception,
+			"Network error",
+			lambda:
+			bot.sendPic(chat_id=self.chat_id, pic="AgADAgADvKwxG-wJf1qMovYCa4r-r-nVgioABJAQ_xRgcmsrHhoCAAEC")
+							)
+
+			self.assertRaisesRegex(Exception,
+			"Network error",
+			lambda:
+			bot.sendPic(chat_id=self.chat_id, pic="AgADAgADvKwxG-wJf1qMova4r-r-nVgioABJAQ_xRgcmsrHhoCAAEC")
+							)
+
 	def awaitUpdates(self, bot):
 		"""
 		Waits for an update and returns the latest one

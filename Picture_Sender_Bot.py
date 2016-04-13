@@ -8,7 +8,7 @@ from python_version_check import check_version
 
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 5)
+VERSION_NUMBER = (1, 0, 6)
 
 import logging
 import telegram
@@ -39,7 +39,7 @@ from file_db import FileDB
 FILE_UPDATE_PERIOD = 600
 
 #If true, use dropbox. If false, use local filesystem
-FROM_DROPBOX = True
+FROM_DROPBOX = False
 
 #A minimum and maximum picture sending period a user can set
 MIN_PICTURE_SEND_PERIOD = 1
@@ -87,9 +87,6 @@ class MainPicSender():
 
 	# Dictionary containing handles to picture-sending processes
 	pic_sender_threads = {}
-
-	# once dropbox user is authorized, set to true to allow operations
-	DB_AUTHORIZED = False
 
 	def __init__(self, token):
 		super(MainPicSender, self).__init__()
@@ -459,16 +456,26 @@ Your current period is {0} seconds.""".format(period),
 			return data
 
 
-		try:
-			cached_ID, data, random_file = None, None, None
-			while True:
+		sent_message, cached_ID, data, random_file, caption = None, None, None, None, ""
+		while True:
+			try:
 				# get list of files
 				files = self.file_db.getFileListPics()
 				# pick a file at random
 				random_file = choice(files)
-				# get the ID of a file in Telegram, if present
-				cached_ID = self.file_db.getFileCacheID(random_file)
+			except IndexError:
+				# DB is empty. Exit the function
+				self.bot.sendMessage(chat_id=chat_id,
+									 message="Sorry, no pictures were found!"
+									 )
+				return
 
+			# get the ID of a file in Telegram, if present
+			cached_ID = self.file_db.getFileCacheID(random_file)
+			# Get the metadata to send with a pic
+			caption = self.file_db.getCaptionPic(random_file)
+
+			while True:
 				if not cached_ID:
 					# if file is not cached in Telegram
 					try:
@@ -484,38 +491,45 @@ Your current period is {0} seconds.""".format(period),
 					except Exception as e:
 						logging.error("Error reading file!" + full_traceback())
 						#File still exists in the DB, but is gone for real. Try another file.
-						continue
+						break
 				else:
 					# file is cached, use resending of cache
 					data = cached_ID
 					print("Cached, sending cached file!")
 
+				try:
+					# Send the pic and get the message object to store the file ID
+					sent_message = self.bot.sendPic(chat_id=chat_id,
+									pic=data,
+									caption=caption
+									)
+					# print("sent_message", sent_message)#debug
+					break
+				except Exception as e:
+					if "Network error" in str(e):
+						print("Cache damaged! Trying to send image by uploading!")
+						# cached ID is invalid. Remove it and upload the image.
+						self.file_db.invalidateCached(random_file)
+						cached_ID = None
+
+			if not data:
+				# If there is no data, the file could not be read. Come back to the beginning of the loop
+				# and try picking a different random file
+				continue
+			else:
+				# Data exists and was sent, exit loop
 				break
 
 
-			# Get the metadata to send with a pic
-			caption = self.file_db.getCaptionPic(random_file)
-
-			# Send the pic and get the message object to store the file ID
-			sent_message = self.bot.sendPic(chat_id=chat_id,
-							pic=data,
-							caption=caption
-							)
-			if sent_message == None:
-				self.bot.sendMessage(chat_id=chat_id,
-								 message="Error sending image! Please, try again!"
-								 )
-			elif not cached_ID:
-				print("sent_message",sent_message, type(sent_message))#debug
-				file_id = self.bot.getFileID_byMesssageObject(sent_message)
-				print("Assigning cache!", file_id)#debug
-				self.file_db.updateCacheID(random_file, file_id)
-
-
-		except IndexError:
+		if sent_message == None:
 			self.bot.sendMessage(chat_id=chat_id,
-								 message="Sorry, no pictures were found!"
-								 )
+							 message="Error sending image! Please, try again!"
+							 )
+		elif not cached_ID:
+			print("sent_message",sent_message, type(sent_message))#debug
+			file_id = self.bot.getFileID_byMesssageObject(sent_message)
+			print("Assigning cache!", file_id)#debug
+			self.file_db.updateCacheID(random_file, file_id)
 
 
 ########################################

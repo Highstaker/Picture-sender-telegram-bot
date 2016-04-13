@@ -243,6 +243,9 @@ class TelegramHigh:
 
 				# Send the picture!
 				sent_message_id = self.bot.sendPhoto(chat_id=chat_id, photo=pic, caption=caption)
+			except telegram.error.NetworkError as e:
+				print(str(e), full_traceback())#debug
+				raise Exception("Network error!")
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt
 			except AttributeError:
