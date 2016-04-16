@@ -19,7 +19,7 @@ socket.setdefaulttimeout(30)
 ############
 # PARAMETERS
 ############
-
+print("telegram version", telegram.__version__)#debug
 
 ##########
 # METHODS
