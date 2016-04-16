@@ -1,5 +1,16 @@
 #!/bin/bash
 
+cd `dirname $0`
+
+mkdir links
+touch links/DB_public_link
+
+mkdir tokens
+touch tokens/token
+echo "0
+0
+" >  tokens/dropbox_tokens
+
 mkdir env
 #create environment
 virtualenv env/picbot_env

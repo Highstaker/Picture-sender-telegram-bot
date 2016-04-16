@@ -5,7 +5,7 @@
 from python_version_check import check_version
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 9)
+VERSION_NUMBER = (1, 0, 10)
 
 import logging
 from random import choice
