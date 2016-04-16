@@ -173,3 +173,16 @@ class FileUtils:
 			result = 0
 
 		return result
+
+class StringConversionUtils:
+
+	@staticmethod
+	def isInt(s):
+		"""
+		Returns True if a string is an integer.
+		"""
+		try:
+			int(s)
+		except ValueError:
+			return False
+		return True

@@ -5,7 +5,7 @@
 from python_version_check import check_version
 check_version((3, 4, 3))
 
-VERSION_NUMBER = (1, 0, 7)
+VERSION_NUMBER = (1, 0, 8)
 
 import logging
 from random import choice
@@ -23,23 +23,26 @@ import utils
 from file_db import FileDB
 from button_handler import getMainMenu
 
+from settings_reader import SettingsReader
+sr = SettingsReader()
+
 
 ############
 ##PARAMETERS
 ############
 
-#How often should a file list of images be updated
-FILE_UPDATE_PERIOD = 600
+#How often should a file list of images be updated, in seconds
+FILE_UPDATE_PERIOD = sr.settings_reader(0)
 
 #If true, use dropbox. If false, use local filesystem
-FROM_DROPBOX = True
+FROM_DROPBOX = bool(sr.settings_reader(2) == "DB")
 
 #A minimum and maximum picture sending period a user can set
 MIN_PICTURE_SEND_PERIOD = 60
 MAX_PICTURE_SEND_PERIOD = 86400
 
 #A default send period
-PICTURE_SEND_PERIOD = 600
+PICTURE_SEND_PERIOD = sr.settings_reader(1)
 
 
 INITIAL_SUBSCRIBER_PARAMS = {"lang": "EN",  # bot's langauge

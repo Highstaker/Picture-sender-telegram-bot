@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 from os import path
 
+SCRIPT_FOLDER = path.dirname(path.realpath(__file__))
+
+from settings_reader import SettingsReader
+sr = SettingsReader()
+
 ##############
 # FILENAMES###
 ##############
@@ -10,26 +15,26 @@ from os import path
 DATABASES_FOLDER_NAME="databases"
 
 # A temporary folder where files will be saved for processing
-TEMP_FOLDER = "/tmp"
+# TEMP_FOLDER = "/tmp"
 
 #A file containing a link to the public folder
 DROPBOX_FOLDER_LINK_FILENAME = "links/DB_public_link"
 
 #A link to shared folder on Dropbox
-with open(path.join(path.dirname(path.realpath(__file__)),DROPBOX_FOLDER_LINK_FILENAME), 'r') as f:
+with open(path.join(SCRIPT_FOLDER,DROPBOX_FOLDER_LINK_FILENAME), 'r') as f:
 	DROPBOX_FOLDER_LINK= f.read().split("\n")[0]
 
 #File storing dropbox keys
 DROPBOX_TOKEN_FILENAME="tokens/dropbox_tokens"
 
 #Dropbox app keys
-with open(path.join(path.dirname(path.realpath(__file__)), DROPBOX_TOKEN_FILENAME),'r') as f:
+with open(path.join(SCRIPT_FOLDER, DROPBOX_TOKEN_FILENAME),'r') as f:
 	DROPBOX_APP_KEY,DROPBOX_SECRET_KEY = f.read().split("\n")[:2]
 
 #A filename of a file containing Telegram bot token.
 BOT_TOKEN_FILENAME = 'tokens/token'
 
-with open(path.join(path.dirname(path.realpath(__file__)), BOT_TOKEN_FILENAME),'r') as f:
+with open(path.join(SCRIPT_FOLDER, BOT_TOKEN_FILENAME),'r') as f:
 	BOT_TOKEN = f.read().replace("\n","")
 
 #A name of a file containing metadata which is displayed together with a picture.
@@ -39,10 +44,10 @@ METADATA_FILENAME = "pic_bot_meta.txt"
 SUBSCRIBERS_BACKUP_FILE = '/tmp/picbot_subscribers_bak'
 
 # Local folder containing pictures
-PIC_FOLDER = "tests/test_pics"
+PIC_FOLDER = sr.settings_reader(3)
 
 # Folder containing pictures in Dropbox
-DROPBOX_PIC_FOLDER = "/Изображения/Inspiration_folder"
+DROPBOX_PIC_FOLDER = "/"
 
 #############
 # TEXTS######

@@ -23,6 +23,18 @@ USER_INTERACTION_TEST = False
 DROPBOX_TEST = False
 
 import utils
+
+class UtilsStringConversionUtilsTest(unittest.TestCase):
+
+	def test_isInt(self):
+		isInt = utils.StringConversionUtils.isInt
+
+		self.assertTrue(isInt("0"))
+		self.assertTrue(isInt("-1"))
+		self.assertTrue(isInt("42"))
+		self.assertFalse(isInt("qweradg213r"))
+		self.assertFalse(isInt("4.2"))
+
 class UtilsDictUtilsTest(unittest.TestCase):
 	#############
 	## replaceKey()
@@ -239,10 +251,10 @@ class TelegramHighTest(unittest.TestCase):
 		# super().__init__()
 	@classmethod
 	def setUpClass(cls):
-		with open(path.join(SCRIPT_FOLDER, "testbot_token"), "r") as f:
+		with open(path.join(SCRIPT_FOLDER, "tests/testbot_token"), "r") as f:
 			cls.BOT_TOKEN = f.read()
 
-		with open(path.join(SCRIPT_FOLDER, "testbot_chatid"), "r") as f:
+		with open(path.join(SCRIPT_FOLDER, "tests/testbot_chatid"), "r") as f:
 			cls.chat_id = f.read()  # chat_id for you
 
 
