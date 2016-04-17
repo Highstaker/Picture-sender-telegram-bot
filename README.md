@@ -6,6 +6,8 @@ This bot sends a random picture from a specified folder (subfolders included) to
 
 ##Deployment
 
+pip3 install virtualenv
+
 To use this program create a file called "token" in the script's folder and paste your bot's token into it (you can call the file otherwise by modifying the `TOKEN_FILENAME` variable). Change `SUBSCRIBERS_BACKUP_FILE` to a path to a file that will be a backup for subscribers list (This is done to prevent loss of subscribers list if a bot crashes and restarts).
 
 If you want to use files on your local filesystem, set `FROM_DROPBOX` to `False`.Then change the `FOLDER` variable to represent the path to your picture folder.
