@@ -6,21 +6,36 @@ This bot sends a random picture from a specified folder (subfolders included) to
 
 ##Deployment
 
-pip3 install virtualenv
+###Requirements
 
-To use this program create a file called "token" in the script's folder and paste your bot's token into it (you can call the file otherwise by modifying the `TOKEN_FILENAME` variable). Change `SUBSCRIBERS_BACKUP_FILE` to a path to a file that will be a backup for subscribers list (This is done to prevent loss of subscribers list if a bot crashes and restarts).
+This program was written and tested in **Python 3.4.3**. Make sure your version is up-to-date.
 
-If you want to use files on your local filesystem, set `FROM_DROPBOX` to `False`.Then change the `FOLDER` variable to represent the path to your picture folder.
+This program's installation script relies on `virtualenv` to install the environment suitable for the bot. 
+If you don't have it instlled, run `sudo pip3 install virtualenv`.
 
-Set `FROM_DROPBOX` to `True` to make the bot grab pictures from a public folder in Dropbox. Create an app with full Dropbox permissions in your Dropbox settings. Create a file with a name specified in `DROPBOX_TOKEN_FILENAME` variable and paste your app key and secret key into it, on separate lines (token is not needed, this bot will not be able to modify your Dropbox storage's contents). Then create a file named as in `DROPBOX_FOLDER_LINK_FILENAME` variable and paste a link to a public Dropbox folder containing your images into it.
+###Installing the bot
 
-You may create a text file in a folder containing pictures (its name is specified by `METADATA_FILENAME` variable) with a text that will be shown together with a picture (for example, Authors of a drawing or photo, etc.).
+Clone the repo to your installation directory, then run `setup.sh`. This should install the required Python libraries.
+
+In `tokens` folder, paste your bot's token (received from BotFather) into `token` file.
+Adjust the `settings.txt` file in `settings` folder to meet your requirements (explanations are present in the file).
+
+If you use _Dropbox_, put your app key and app secret key on first two lines in `dropbox_tokens` file in `tokens` directory. Dropbox app token is not needed, only app keys (See your Dropbox app settings).
+Additionally, create a public link to a Dropbox folder containing your images and put this link into `DB_public_link` file in `links` folder.
+
+###Running the bot
+
+Run `run.sh` to start the bot.
 
 ##Dependencies
 
-This program uses **Python 3**
+This program uses **Python 3.4.3**
 
-This program relies on [python-telegram-bot](https://github.com/leandrotoledo/python-telegram-bot).
+The bot relies on [python-telegram-bot](https://github.com/leandrotoledo/python-telegram-bot).
 
-To install it, use:
-`pip3 install python-telegram-bot`
+All requirements shall be installed with `setup.sh` script.
+
+##Tested operating systems.
+
+* Ubuntu 14.04 Desktop
+* Ubuntu 14.04 Server
