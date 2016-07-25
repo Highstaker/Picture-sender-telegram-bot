@@ -75,13 +75,14 @@ class FileDB(object):
 		:param init_data: data to be put in that column. Used to determine the type
 		:return:
 		"""
-		command = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + str(column) + " " + getSQLiteType(init_data)
+		command = "ALTER TABLE {0} ADD COLUMN {1} {2};".format(TABLE_NAME, str(column), getSQLiteType(init_data))
 		try:
 			self._run_command(command)
 		except sqlite3.OperationalError:
+			pass
 			print("Column " + str(column) + " already exists!")
 
-	def _run_command(self, command):
+	def _run_command(self, command, params=None):
 		"""
 		Runs a given command and returns the output.
 		:param command:
@@ -89,7 +90,10 @@ class FileDB(object):
 		"""
 		with self.lock:
 			conn = sqlite3.connect(self.filename)
-			cursor = conn.execute(command)
+			if params:
+				cursor = conn.execute(command, params)
+			else:
+				cursor = conn.execute(command)
 			data =[i for i in cursor]
 			conn.commit()
 			conn.close()
@@ -103,8 +107,9 @@ class FileDB(object):
 		:return:
 		"""
 
-		command = "SELECT ID FROM {0} WHERE path='{1}';".format(TABLE_NAME,pth)
-		data = self._run_command(command)
+		command = "SELECT ID FROM {0} WHERE path=?;".format(TABLE_NAME)
+		params = (pth,)
+		data = self._run_command(command, params)
 
 		try:
 			result = data[0][0]
@@ -131,9 +136,10 @@ class FileDB(object):
 			if not mod_time:
 				mod_time = utils.FileUtils.getModificationTimeUnix(pth)
 
-			command = "INSERT INTO {0} (type, path, mod_time) VALUES (0, '{1}', {2});".format(TABLE_NAME, pth, mod_time)
+			command = "INSERT INTO {0} (type, path, mod_time) VALUES (0, ?, ?);".format(TABLE_NAME)
+			params = (pth, mod_time,)
 
-			self._run_command(command)
+			self._run_command(command, params)
 		else:
 			print("addFile: File already exists!")#debug
 
@@ -144,8 +150,9 @@ class FileDB(object):
 		:return: integer or None
 		"""
 		if self.fileExists(pth):
-			command = "SELECT mod_time FROM {0} WHERE path='{1}';".format(TABLE_NAME, pth)
-			result = self._run_command(command)
+			command = "SELECT mod_time FROM {0} WHERE path=?;".format(TABLE_NAME)
+			params = (pth,)
+			result = self._run_command(command, params)
 			try:
 				result = result[0][0]
 			except IndexError:
@@ -164,8 +171,9 @@ class FileDB(object):
 		:return:
 		"""
 		if self.fileExists(pth):
-			command = "UPDATE {0} SET mod_time={1} WHERE path='{2}';".format(TABLE_NAME, mod_time, pth)
-			self._run_command(command)
+			command = "UPDATE {0} SET mod_time=? WHERE path=?;".format(TABLE_NAME)
+			params = (mod_time, pth,)
+			self._run_command(command, params)
 		else:
 			print("updateModTime: file doesn't exist!")
 
@@ -178,12 +186,9 @@ class FileDB(object):
 		"""
 
 		if not self.fileExists(pth):
-			command = "INSERT INTO {0} (type, path, meta, mod_time) VALUES (1, '{1}', '{2}', '{3}');".format(TABLE_NAME,
-																			pth,
-																			utils.SQLiteUtils.escapeText(metadata),
-																			mod_time
-																			)
-			self._run_command(command)
+			command = "INSERT INTO {0} (type, path, meta, mod_time) VALUES (1, ?, ?, ?);".format(TABLE_NAME)
+			params = (pth, metadata, mod_time)
+			self._run_command(command, params)
 		else:
 			print("addMetafile: Meta File already exists!")#debug
 
@@ -195,11 +200,9 @@ class FileDB(object):
 		:return:
 		"""
 		if self.fileExists(pth):
-			command = "UPDATE {0} SET meta='{1}', mod_time='{3}' WHERE path='{2}';".format(TABLE_NAME,
-																		utils.SQLiteUtils.escapeText(metadata),
-																		pth,
-																		mod_time)
-			self._run_command(command)
+			command = "UPDATE {0} SET meta=?, mod_time=? WHERE path=?;".format(TABLE_NAME)
+			params = (metadata, mod_time, pth)
+			self._run_command(command, params)
 		else:
 			print("updateMetadata: file doesn't exist!")#debug
 
@@ -210,8 +213,9 @@ class FileDB(object):
 		:return: string
 		"""
 		if self.fileExists(pth):
-			command = "SELECT meta FROM {0} where path='{1}';".format(TABLE_NAME, pth)
-			data = self._run_command(command)
+			command = "SELECT meta FROM {0} where path=?;".format(TABLE_NAME)
+			params = (pth,)
+			data = self._run_command(command, params)
 			try:
 				data = data[0][0]
 			except IndexError:
@@ -256,8 +260,9 @@ class FileDB(object):
 		:param pth:
 		:return:
 		"""
-		command = "DELETE FROM {0} WHERE path='{1}';".format(TABLE_NAME, pth)
-		self._run_command(command)
+		command = "DELETE FROM {0} WHERE path=?;".format(TABLE_NAME)
+		params = (pth,)
+		self._run_command(command, params)
 
 	def updateCacheID(self, pth, cacheID):
 		"""
@@ -266,8 +271,9 @@ class FileDB(object):
 		:param cacheID:
 		:return:
 		"""
-		command = "UPDATE {0} SET file_id='{1}' WHERE path='{2}'".format(TABLE_NAME, cacheID, pth)
-		self._run_command(command)
+		command = "UPDATE {0} SET file_id=? WHERE path=?;".format(TABLE_NAME)
+		params = (cacheID, pth)
+		self._run_command(command, params)
 
 	def getFileCacheID(self, pth):
 		"""
@@ -275,8 +281,9 @@ class FileDB(object):
 		:param pth:
 		:return:
 		"""
-		command = "SELECT file_id FROM {0} WHERE path='{1}'".format(TABLE_NAME, pth)
-		data = self._run_command(command)
+		command = "SELECT file_id FROM {0} WHERE path=?;".format(TABLE_NAME)
+		params = (pth,)
+		data = self._run_command(command, params)
 
 		try:
 			data = data[0][0]
@@ -291,8 +298,9 @@ class FileDB(object):
 		:param pth:
 		:return:
 		"""
-		command = "UPDATE {0} SET file_id=NULL WHERE path='{1}'".format(TABLE_NAME, pth)
-		self._run_command(command)
+		command = "UPDATE {0} SET file_id=NULL WHERE path=?".format(TABLE_NAME)
+		params = (pth,)
+		self._run_command(command, params)
 
 	def getCaption(self, pth):
 		"""
@@ -300,8 +308,9 @@ class FileDB(object):
 		:param pth: path to a *metadata* file
 		:return:
 		"""
-		command = "SELECT meta FROM {0} WHERE path='{1}';".format(TABLE_NAME,pth)
-		data = 	self._run_command(command)
+		command = "SELECT meta FROM {0} WHERE path=?;".format(TABLE_NAME)
+		params = (pth,)
+		data = self._run_command(command, params)
 
 		try:
 			data = data[0][0]
