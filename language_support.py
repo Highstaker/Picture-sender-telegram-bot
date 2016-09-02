@@ -24,7 +24,7 @@ class LanguageSupport(object):
 		:param message: the message to process
 		If a string is given, it is returned as-is.
 		If a dictionary is given, a string with a key set in `self.lang` is given. If it is not in dictionary,
-		`self.default_lang` is uesd instead.
+		`self.default_lang` is used instead.
 		:raises KeyError: if neither `self.lang` nor `self.default_lang` are in the dictionary.
 		"""
 		lang = self.lang

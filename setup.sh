@@ -13,13 +13,13 @@ echo "0
 
 mkdir env
 #create environment
-virtualenv env/picbot_env
+virtualenv env
 # install dependencies
-env/picbot_env/bin/python3 env/picbot_env/bin/pip3 install -r requirements.txt
+env/bin/python3 env/bin/pip3 install -r requirements.txt
 
 echo "#!/bin/bash
 
-env/picbot_env/bin/python3 Picture_Sender_Bot.py
+env/bin/python3 Picture_Sender_Bot.py
 
 exit 0
 " > run.sh

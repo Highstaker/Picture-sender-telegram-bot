@@ -4,21 +4,21 @@ from os import path
 
 SCRIPT_FOLDER = path.dirname(path.realpath(__file__))
 
-from settings_reader import SettingsReader
-sr = SettingsReader()
+# from settings_reader import SettingsReader
+# sr = SettingsReader()
 
 ##############
 # FILENAMES###
 ##############
 
 # Databases containing user parameters, file info and other stuff are located here
-DATABASES_FOLDER_NAME="databases"
+# DATABASES_FOLDER_NAME="databases"
 
-# A temporary folder where files will be saved for processing
-# TEMP_FOLDER = "/tmp"
-
-#A file containing a link to the public folder
+# A file containing a link to the public folder
 DROPBOX_FOLDER_LINK_FILENAME = "links/DB_public_link"
+
+# Filename of database containing user data
+# USERS_DB_FILENAME = "users"
 
 #A link to shared folder on Dropbox
 with open(path.join(SCRIPT_FOLDER,DROPBOX_FOLDER_LINK_FILENAME), 'r') as f:
@@ -41,10 +41,10 @@ with open(path.join(SCRIPT_FOLDER, BOT_TOKEN_FILENAME),'r') as f:
 METADATA_FILENAME = "pic_bot_meta.txt"
 
 #A path where subscribers list is saved.
-SUBSCRIBERS_BACKUP_FILE = '/tmp/picbot_subscribers_bak'
+# SUBSCRIBERS_BACKUP_FILE = '/tmp/picbot_subscribers_bak'
 
 # Local folder containing pictures
-PIC_FOLDER = sr.settings_reader(3)
+# PIC_FOLDER = sr.settings_reader(3)
 
 # Folder containing pictures in Dropbox
 DROPBOX_PIC_FOLDER = "/"
@@ -67,6 +67,24 @@ SUBSCRIBE_BUTTON = '✏️' + "Subscribe"
 UNSUBSCRIBE_BUTTON = '🚫' + "Unsubscribe"
 SHOW_PERIOD_BUTTON = "⏲" + "Show period"
 
+##############
+### MESSAGES##
+##############
+
+ALREADY_SUBSCRIBED_MESSAGE = """You have already subscribed!
+To cancel subscription enter /unsubscribe.
+To change the period of picture sending type a number.
+Your current period is {0} seconds."""
+
+SUBSCRIBED_MESSAGE = """You're subscribed now!
+An image will be sent to you every {0} seconds.
+To cancel subscription enter /unsubscribe.
+To change the period of picture sending type a number."""
+
+NOT_SUBSCRIBED_YET_MESSAGE = "You haven't subscribed yet! To subscribe type /subscribe"
+
+UNSUBSCRIBED_MESSAGE = "You have unsubscribed. To subscribe again type /subscribe"
+
 ##################
 # BIG TEXTS#######
 ##################
@@ -85,8 +103,8 @@ To get a random picture, type /gimmePic.
 To make this bot send you a random picture every set amount of time (by default it is
 	{0} seconds) type /subscribe.
 To set a period of sending (in seconds), type a number.
-+ Minimum: {0} seconds.
-+ Maximum: {1} seconds.
++ Minimum: {1} seconds.
++ Maximum: {2} seconds.
 To stop receiving pictures, type /unsubscribe
 '''
 
@@ -96,4 +114,6 @@ OTHER_BOTS_MESSAGE = """*My other bots*:
 
 @multitran\_bot: a Russian-Whichever dictionary with support of 9 languages. Has transcriptions for English words.
 """
+
+UNKNOWN_COMMAND_MESSAGE = "Unknown command"
 

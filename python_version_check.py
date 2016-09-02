@@ -17,6 +17,6 @@ Needed by the software: {0}""".format(".".join(map(str, v)), ".".join(map(str,ve
 
 # a quick test
 if __name__ == '__main__':
-	required_version = (3, 5, 0)
+	required_version = (3, 4, 0)
 	check_version(required_version)
 	print("Version sufficient!")

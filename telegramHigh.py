@@ -11,7 +11,7 @@ import re
 
 #Initialize logging handler
 from logging_handler import LoggingHandler
-logging = LoggingHandler()
+# logging = LoggingHandler()
 
 # if a connection is lost and getUpdates takes too long, an error is raised
 socket.setdefaulttimeout(30)

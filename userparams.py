@@ -4,7 +4,7 @@ import os
 import sqlite3
 from os import path
 
-from textual_data import DATABASES_FOLDER_NAME
+# from textual_data import DATABASES_FOLDER_NAME
 from utils import SQLiteUtils
 getSQLiteType = SQLiteUtils.getSQLiteType
 

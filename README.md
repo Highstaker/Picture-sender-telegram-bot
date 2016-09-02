@@ -15,6 +15,8 @@ If you don't have it instlled, run `sudo pip3 install virtualenv`.
 
 ###Installing the bot
 
+sudo apt-get install libpq-dev python-dev
+
 Clone the repo to your installation directory, then run `setup.sh`. This should install the required Python libraries.
 
 In `tokens` folder, paste your bot's token (received from BotFather) into `token` file.
