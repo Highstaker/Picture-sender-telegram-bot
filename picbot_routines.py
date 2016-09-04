@@ -133,6 +133,10 @@ class PicBotRoutines(BotRoutines):
 		else:
 			log.debug("Not cached, getting a file from Dropbox!")  # debug
 			data = self.dropbox_handler.getDropboxFile(random_file)
+			if not data:
+				# if not data, the file is probably gone, retry the whole routine
+				self._sendDropboxRandomPicThread(chat_id)
+				return
 
 		metadata = self.database_handler.getMetadataForFile(random_file)
 
@@ -141,6 +145,10 @@ class PicBotRoutines(BotRoutines):
 		except BadFileIDError:
 			# The ID is broken, resend file
 			data = self.dropbox_handler.getDropboxFile(random_file)
+			if not data:
+				# if not data, the file is probably gone, retry the whole routine
+				self._sendDropboxRandomPicThread(chat_id)
+				return
 			msg = super(PicBotRoutines, self).sendPhoto(chat_id, data, caption=metadata,)
 			cache = None
 
