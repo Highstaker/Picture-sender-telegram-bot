@@ -138,7 +138,8 @@ class PicBotRoutines(BotRoutines):
 			data = self.dropbox_handler.getDropboxFile(random_file)
 			if not data:
 				# if not data, the file is probably gone, retry the whole routine
-				self._sendDropboxRandomPicThread(chat_id)
+				if not random_override:
+					self._sendDropboxRandomPicThread(chat_id)
 				return
 
 		metadata = self.database_handler.getMetadataForFile(random_file)
