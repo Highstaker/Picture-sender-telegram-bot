@@ -3,21 +3,6 @@
 
 from textual_data import *
 
-# class ButtonHandler(object):
-# 	"""docstring for ButtonHandler"""
-#
-# 	instance = None
-#
-# 	def __new__(cls):
-# 		#singleton
-# 		if cls.instance is None:
-# 			cls.instance = super(ButtonHandler, cls).__new__(cls)
-# 		return cls.instance
-#
-# 	def __init__(self):
-# 		super(ButtonHandler, self).__init__()
-#
-# 	@staticmethod
 def getMainMenu(subscribed):
 	"""
 	Returns a representation of custom keyboard to be passed to message-sending functions

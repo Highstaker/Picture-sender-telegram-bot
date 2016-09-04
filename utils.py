@@ -9,7 +9,7 @@ import datetime
 
 from traceback_printer import full_traceback
 from logging_handler import LoggingHandler
-logging = LoggingHandler
+log = LoggingHandler(__name__)
 
 
 class DictUtils:
@@ -47,7 +47,7 @@ class FolderSearch:
 	@staticmethod
 	def getFilepathsInclSubfolders(FOLDER, allowed_extensions=None):
 		"""
-		Returns a list of full paths to all files in a folder and subfolders. Follows links!
+		Returns a set of full paths to all files in a folder and subfolders. Follows links!
 		param allowed_extensions: if provided, adds only files with specified extensions
 		"""
 		myFolder = FOLDER
@@ -57,7 +57,7 @@ class FolderSearch:
 			for fileName in files:
 				if not allowed_extensions or path.splitext(fileName)[1].replace('.','').lower() in [i.lower() for i in allowed_extensions]:
 					fileSet.add( path.join( root, fileName ))
-		return list(fileSet)
+		return fileSet
 
 
 class DropboxFolderSearch:
@@ -112,7 +112,7 @@ class DropboxFolderSearch:
 
 					for i in json.loads(req.content.decode())['contents']:
 						if i['is_dir']:
-							logging.warning("Reading directory: " + str(i['path']))
+							log.warning("Reading directory: " + str(i['path']))
 							result += readDir(LINK,i['path'])
 						else:
 							#a file, add to list
@@ -186,3 +186,8 @@ class StringConversionUtils:
 		except ValueError:
 			return False
 		return True
+
+if __name__ == '__main__':
+	pass
+	#TESTS
+	
