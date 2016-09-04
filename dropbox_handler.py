@@ -11,14 +11,18 @@ log = LoggingHandler(__name__, max_level="DEBUG")
 IMAGE_FILE_EXTENSIONS = (".jpg", ".jpeg", ".png",)
 AUX_FILES = (METADATA_FILENAME,)  # various filenames, like metadata, collections info, etc.
 
+
 def is_pic(filepath):
 	return path.splitext(filepath)[1].lower() in IMAGE_FILE_EXTENSIONS
+
 
 def is_auxfile(filepath):
 	return path.basename(filepath) in AUX_FILES
 
+
 def is_metadata(filepath):
 	return path.basename(filepath) == METADATA_FILENAME
+
 
 class DropboxHandler(object):
 	"""docstring for DropboxManager"""

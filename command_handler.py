@@ -1,7 +1,3 @@
-# import functools
-# from queue import Queue
-# from threading import Thread
-
 from telegram.ext import CommandHandler, MessageHandler, Filters, Job, JobQueue
 
 from VERSION import VERSION_NUMBER
@@ -10,74 +6,18 @@ from picbot_routines import PicBotRoutines
 from language_support import LanguageSupport
 from database_handler import time
 
-from utils import FolderSearch
 from dropbox_handler import DropboxHandler
 from settings_reader import SettingsReader
 from logging_handler import LoggingHandler
 sr = SettingsReader()
 log = LoggingHandler(__name__, max_level="DEBUG")
 
-MIN_PICTURE_SEND_PERIOD = 5
+MIN_PICTURE_SEND_PERIOD = 60
 MAX_PICTURE_SEND_PERIOD = 86400
 
-LOCAL_CLEANER_PERIOD = 10
+LOCAL_CLEANER_PERIOD = 3600
 
 subscriptions_tasks = dict()
-
-# async_command_runner_thread = None
-# async_command_queue = Queue()
-#
-# def async_command_runner():
-# 	"""Thread that runs processors one after another"""
-# 	while True:
-# 		func, self, bot, update = async_command_queue.get()
-# 		# print("running processor")#debug
-# 		func(self, bot, update)
-
-###############
-#### DECORATORS
-###############
-
-# def _command_method(func):
-# 	"""Decorator for functions that are invoked on commands. Ensures that the user is initialized."""
-#
-# 	@functools.wraps(func)
-# 	def wrapper(self, bot, update, *args, **kwargs):
-# 		print("command method", func.__name__,)#debug
-# 		print("self",self)# debug
-# 		print("command method", self, bot, update, args, kwargs, sep="||")#debug
-# 		chat_id = update.message.chat_id
-#
-# 		# Initialize user, if not present in DB
-# 		# self.userparams.initializeUser(chat_id=chat_id)
-#
-# 		# filter functions that don't need ticks, or else there will be two ticks on every non-slash command
-# 		# because it also counts messageMethod
-# 		# if func.__name__ not in ("messageMethod"):
-# 		# 	# write a tick to user activity log
-# 		# 	self.activity_logger.tick(chat_id)
-#
-# 		# noinspection PyCallingNonCallable
-# 		func(self, bot, update, *args, **kwargs)
-#
-# 	return wrapper
-
-# def command_async(func):
-# 	"""runs a command processor in a separate thread. Uses a queue to run processors one after another"""
-# 	@functools.wraps(func)
-# 	def async_wrapper(self, bot, update):
-# 		# print("async")#debug
-# 		global async_command_runner_thread
-# 		if not async_command_runner_thread or not async_command_runner_thread.is_alive():
-# 			async_command_runner_thread = t = Thread(target=async_command_runner)
-# 			t.start()
-# 		# print("putting")#debug
-# 		async_command_queue.put((func, self, bot, update,))
-# 	return async_wrapper
-
-#########
-##CLASSES
-#########
 
 
 class UserCommandHandler(PicBotRoutines):

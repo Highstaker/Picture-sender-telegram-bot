@@ -13,6 +13,7 @@ DB_FILENAME = "picbot.db"
 def time():
 	return int(m_time.time())
 
+
 class DatabaseError(Exception):
 	pass
 
@@ -153,7 +154,7 @@ class DatabaseHandler(GenericDatabaseHandler):
 		"""
 		Updates the mod_time in database.
 		:param file_path:
-		:param file_id: ID of a file on Telegram servers
+		:param mod_time:
 		:return:
 		"""
 		self._updateEntriesEqual("files", "file_path", file_path, mod_time=mod_time)
