@@ -3,6 +3,8 @@ from os import path
 from time import sleep
 from threading import Thread
 
+from telegram.error import TelegramError
+
 from bot_routines import BotRoutines, BadFileIDError
 from database_handler import DatabaseHandler, DatabaseError
 from utils import FolderSearch, FileUtils
@@ -185,7 +187,10 @@ class PicBotRoutines(BotRoutines):
 		elif pic_source == "DB":
 			uncached_files = set(self.database_handler.getUncachedFiles())
 			for f in uncached_files:
-				self._sendDropboxRandomPicThread(chat_id, random_override=f)
+				try:
+					self._sendDropboxRandomPicThread(chat_id, random_override=f)
+				except TelegramError:
+					pass
 
 
 if __name__ == '__main__':
