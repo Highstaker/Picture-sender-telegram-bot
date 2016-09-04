@@ -106,7 +106,7 @@ class PicBotRoutines(BotRoutines):
 		else:
 			self.sendMessage(chat_id, "I'm still sending you a picture. Please wait!")
 
-	def _sendDropboxRandomPicThread(self, chat_id):
+	def _sendDropboxRandomPicThread(self, chat_id, random_override=None):
 		"""
 		Sends a random picture from Dropbox storage. Attaches caption from the folder
 		:param chat_id:
@@ -114,13 +114,16 @@ class PicBotRoutines(BotRoutines):
 		"""
 
 		# get list of files from database
-		files = FileUtils.filterByExtension(self.database_handler.getFileList(), PIC_FILE_EXTENSIONS)
-		if not files:
-			self.sendMessage(chat_id, "Sorry, no images available!")
-			return
+		if not random_override:
+			files = FileUtils.filterByExtension(self.database_handler.getFileList(), PIC_FILE_EXTENSIONS)
+			if not files:
+				self.sendMessage(chat_id, "Sorry, no images available!")
+				return
 
-		# pick a file at random.
-		random_file = choice(files)
+			# pick a file at random.
+			random_file = choice(files)
+		else:
+			random_file = random_override
 		log.info("random_file", random_file)
 
 		cache = self.database_handler.getFileCache(random_file)
@@ -155,6 +158,32 @@ class PicBotRoutines(BotRoutines):
 		file_id = super(PicBotRoutines, self).getPhotoFileID(msg)
 
 		self.database_handler.updateCache(random_file, file_id)
+
+	def sendUncachedImages(self, chat_id, pic_source):
+		"""
+		Sends all images that have no `file_id` in database
+		:param chat_id:
+		:return:
+		"""
+		if pic_source == "local":
+			files = self.getLocalFiles()  # a set
+			cached_files = set(self.database_handler.getCachedFiles())
+			to_send = files.difference(cached_files)
+			log.debug("files", files)
+			log.debug("cached_files", cached_files)
+			log.debug("to_send", to_send)
+
+			for f in to_send:
+				mod_time = FileUtils.getModificationTimeUnix(f)
+				self.database_handler.addFile(f, mod_time=mod_time)
+				msg = super(PicBotRoutines, self).sendPhoto(chat_id, f)
+				file_id = super(PicBotRoutines, self).getPhotoFileID(msg)
+				self.database_handler.updateModtime(f, mod_time)
+				self.database_handler.updateCache(f, file_id)
+		elif pic_source == "DB":
+			uncached_files = set(self.database_handler.getUncachedFiles())
+			for f in uncached_files:
+				self._sendDropboxRandomPicThread(chat_id, random_override=f)
 
 
 if __name__ == '__main__':

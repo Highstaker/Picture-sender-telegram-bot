@@ -279,12 +279,45 @@ class DatabaseHandler(GenericDatabaseHandler):
 		"""
 		self._batchDeleteEquals("files", "file_path", files)
 
+	def getUncachedFiles(self):
+		"""
+		Returns a list of images without file_id.
+		:return: tuple of filepaths to files that have no file_id in the database
+		"""
+		command = "SELECT file_path FROM files WHERE file_type==1 AND file_id IS NULL;"
+
+		data = self._run_command(command)
+		result = sum(data, ())
+
+		return result
+
+	def getCachedFiles(self):
+		"""
+		Returns a list of images with file_id.
+		:return: tuple of filepaths to files that have a file_id in the database
+		"""
+		command = "SELECT file_path FROM files WHERE file_type==1 AND file_id IS NOT NULL;"
+
+		data = self._run_command(command)
+		result = sum(data, ())
+
+		return result
+
 if __name__ == '__main__':
 	h = DatabaseHandler()
-	h.addFile("/tmp/hello.jpg")
-	h.addFile("/tmp/metta.txt", metadata="Nöthing really")
-	h.updateCache("/tmp/hello.jpg", file_id="blahblahID")
-	print(h.getFileCache("/tmp/hello.jpg"))
-	print(h.getFileCache("/tmp/metta.txt"))
-	print(h.getFileList())
+	# h.addFile("/tmp/hello.jpg")
+	# h.addFile("/tmp/hello2.jpg")
+	# h.addFile("/tmp/metta.txt", metadata="Nöthing really")
+	# h.updateCache("/tmp/hello.jpg", file_id="blahblahID")
+	# h.updateCache("/tmp/hello2.jpg", file_id="blahblahID2")
+	# print(h.getFileCache("/tmp/hello.jpg"))
+	# print(h.getFileCache("/tmp/metta.txt"))
+	# print("getFileList", h.getFileList())
+	# h.invalidateCache("/tmp/hello.jpg")
+	# print(h.getFileCache("tests/test_pics/pic2.jpeg"))
+	# print(h.getFileCache("/tmp/hello.jpg"))
+	# print("getUncachedFiles", h.getUncachedFiles())
+
+	print(h.getCachedFiles())
+	print(h.getUncachedFiles())
 

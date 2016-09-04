@@ -1,4 +1,4 @@
 600 ## FILE_UPDATE_PERIOD How often should a file list of images be updated, in seconds
 600 ## initial PICTURE_SEND_PERIOD A default period for a subscribed user to receive an image.
-DB ## where is the pic storage? local - local filesystem; DB - Dropbox storage
+local ## where is the pic storage? local - local filesystem; DB - Dropbox storage
 tests/test_pics ## PIC_FOLDER - folder where the images are located on the local file system. Ignored if DB is set.

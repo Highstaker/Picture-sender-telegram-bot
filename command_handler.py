@@ -109,6 +109,8 @@ class UserCommandHandler(PicBotRoutines):
 		self.dispatcher.add_handler(CommandHandler('gimmepic', self.command_gimmepic))
 		self.dispatcher.add_handler(CommandHandler('subscribe', self.command_subscribe))
 		self.dispatcher.add_handler(CommandHandler('unsubscribe', self.command_unsubscribe))
+		self.dispatcher.add_handler(CommandHandler('spamuncached', self.command_spamuncached))
+
 
 
 		# non-command message
@@ -299,3 +301,10 @@ class UserCommandHandler(PicBotRoutines):
 		chat_id = update.message.chat_id
 		period = self.database_handler.getPeriod(chat_id)
 		self.sendMessageCommandMethod(bot, update, """An image is sent to you every {0} seconds.""".format(period))
+
+
+	# noinspection PyArgumentList
+	@_command_method
+	def command_spamuncached(self, bot, update, lS=None):
+		chat_id = update.message.chat_id
+		self.sendUncachedImages(chat_id, self.pic_source)
