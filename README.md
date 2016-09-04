@@ -1,5 +1,6 @@
 #Random Picture Sender bot for Telegram
 
+
 ##Overview
 
 This bot sends a random picture from a specified folder (subfolders included) to a subscribed user once in a fixed period of time. A user can change the period by typing a number. Additionally, a user may request a random picture right away.
@@ -15,7 +16,8 @@ If you don't have it instlled, run `sudo pip3 install virtualenv`.
 
 ###Installing the bot
 
-sudo apt-get install libpq-dev python-dev
+First, install the dependencies (I had to install them on Ubuntu 14.04, not sure if every system requires that):
+`sudo apt-get install libpq-dev python-dev`
 
 Clone the repo to your installation directory, then run `setup.sh`. This should install the required Python libraries.
 
@@ -28,6 +30,33 @@ Additionally, create a public link to a Dropbox folder containing your images an
 ###Running the bot
 
 Run `run.sh` to start the bot.
+
+###Deploying with webhooks and `nginx`
+
+Install *nginx* using `apt-get install nginx`
+Go to `/etc/nginx/sites-enabled` and create new file with the following contents.
+```
+server {
+    listen              443 ssl;
+    server_name         111.111.111.111; #IP address of your server
+    ssl_certificate     /somepath/certs/cert.pem; #path to your ssl certificate file
+    ssl_certificate_key /somepath/certs/private.key; #path to your ssl private key file
+
+
+location /BOT_TOKEN {
+    proxy_pass http://127.0.0.1:33333; #port is arbitrary, the one you set upon launching the bot
+        }
+}
+
+```
+
+Go to `/etc/nginx/sites-enabled` and delete the default <s>cube</s> link.
+Create a link to your settings file. `ln -s /etc/nginx/sites-enabled/your_config /etc/nginx/sites-enabled`
+
+Perform `nginx -s reload` to reload the configuration.
+
+Modify your _run.sh_ so it would be something like this, replacing the values with your values, of course.
+`env/picbot_env/bin/python3 multitran_bot.py --server-ip="111.111.111.111" -m "webhook_nginx" -p 33333 -c "/somepath/certs/cert.pem"`
 
 ##Dependencies
 
