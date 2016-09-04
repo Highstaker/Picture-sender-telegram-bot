@@ -530,16 +530,12 @@ class PictureSenderBot(PicBotRoutines):
 		self.updater = Updater(token=token)
 		self.dispatcher = self.updater.dispatcher
 
-		# from telegram.ext import CommandHandler
-		# self.dispatcher.add_handler(CommandHandler('start', command_start))
-		# self.dispatcher.add_handler(CommandHandler('start', lambda *args, **kwargs: print("hello")))
-
 		self.command_handler = UserCommandHandler(self.updater.bot, self.dispatcher, self.database_handler, token=token)
 
 	def run(self):
 		if self.update_mode == "polling":
 			# print("start")#debug
-			# self.updater.bot.setWebhook() #clear webhook
+			self.updater.bot.setWebhook() #clear webhook
 			# print("start2")#debug
 			self.updater.start_polling()
 			# print("start3")  # debug

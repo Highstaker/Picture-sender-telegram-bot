@@ -10,6 +10,8 @@ from picbot_routines import PicBotRoutines
 from language_support import LanguageSupport
 from database_handler import time
 
+from utils import FolderSearch
+from dropbox_handler import DropboxHandler
 from settings_reader import SettingsReader
 from logging_handler import LoggingHandler
 sr = SettingsReader()
@@ -17,6 +19,8 @@ log = LoggingHandler(__name__, max_level="DEBUG")
 
 MIN_PICTURE_SEND_PERIOD = 5
 MAX_PICTURE_SEND_PERIOD = 86400
+
+LOCAL_CLEANER_PERIOD = 10
 
 subscriptions_tasks = dict()
 
@@ -108,6 +112,7 @@ class UserCommandHandler(PicBotRoutines):
 
 		self.dispatcher = dispatcher
 
+		# queue for async jobs
 		self.job_queue = JobQueue(bot)
 
 		# Where to get pictures from: local filesystem(local) or Dropbox storage (DB)
@@ -119,6 +124,13 @@ class UserCommandHandler(PicBotRoutines):
 
 		self._addHandlers()
 
+		if self.pic_source == "DB":
+			self.dropbox_handler = DropboxHandler(self.database_handler)
+			self._updateDBFiles()
+		elif self.pic_source == "local":
+			self.local_cleaner_job = None
+			self._startLocalCleanerJob()
+
 		self._initializeSubscriptionJobs()
 
 	def _initializeSubscriptionJobs(self):
@@ -126,9 +138,30 @@ class UserCommandHandler(PicBotRoutines):
 			log.debug("_initializeSubscriptionJobs chat_id", chat_id)
 			self.createPeriodicSenderTask(chat_id)
 
-	def _addHandlers(self):
-		# self.dispatcher.add_handler(CommandHandler('start', lambda *_, **__: print("command_start")))#debug
+	def _updateDBFiles(self):
+		self.dropbox_handler.updateFiles()
 
+	def _startLocalCleanerJob(self):
+		"""
+		Creates a delayed async job that cleans database every now and then if local files get deeleted
+		:return:
+		"""
+		log.debug("_startLocalCleanerJob")
+		self.local_cleaner_job = job = Job(self._localCleanerThread, interval=LOCAL_CLEANER_PERIOD, repeat=True)
+		self.job_queue.put(job)
+
+	def _localCleanerThread(self, bot, job):
+		log.debug("_localCleanerThread")
+		local_files = self.getLocalFiles()
+		bd_files = set(self.database_handler.getFileList())
+		to_delete = bd_files.difference(local_files)
+		log.debug("to_delete", to_delete)
+
+		if to_delete:
+			self.database_handler.batchDeleteFiles(to_delete)
+
+
+	def _addHandlers(self):
 		self.dispatcher.add_handler(CommandHandler('start', self.command_start))
 		self.dispatcher.add_handler(CommandHandler('help', self.command_help))
 		self.dispatcher.add_handler(CommandHandler('about', self.command_about))
@@ -192,8 +225,10 @@ class UserCommandHandler(PicBotRoutines):
 	def doGimmepic(self, chat_id):
 		if self.pic_source == "local":
 			self.sendLocalRandomPic(chat_id)
+		elif self.pic_source == "DB":
+			self.sendDropboxRandomPic(chat_id)
 
-	def periodicSender(self, bot, job):
+	def _periodicSender(self, bot, job):
 		chat_id = job.context
 		self.doGimmepic(chat_id)
 		self.database_handler.resetTimer(chat_id)
@@ -207,7 +242,7 @@ class UserCommandHandler(PicBotRoutines):
 		time_left = self.database_handler.getSendTime(chat_id) - time()
 		log.debug("Time left:", time_left)
 
-		job = Job(self.periodicSender, time_left, context=chat_id)
+		job = Job(self._periodicSender, time_left, context=chat_id)
 		subscriptions_tasks[chat_id] = job
 		self.job_queue.put(job)
 

@@ -63,7 +63,7 @@ class LoggingHandler:
 
 		logging.basicConfig(format=LOG_FORMAT,
 							level=logging.WARNING,
-							handlers=(fh, ch),
+							handlers=(fh,) + ((ch,) if logger_name != "__main__" else ()),
 							# stream=Devnull(),
 							# filename=path.join(LOGS_DIR, DEBUG_FILE_NAME),
 							# filemode='a',

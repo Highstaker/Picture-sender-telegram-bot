@@ -1,26 +1,32 @@
-from random import choice
+from random import choice, sample
 from os import path
 from time import sleep
+from threading import Thread
 
 from bot_routines import BotRoutines, BadFileIDError
 from database_handler import DatabaseHandler, DatabaseError
-from utils import FolderSearch
+from utils import FolderSearch, FileUtils
 from textual_data import METADATA_FILENAME
 from button_handler import getMainMenu
 
 from settings_reader import SettingsReader
 from logging_handler import LoggingHandler
-log = LoggingHandler(__name__)
+log = LoggingHandler(__name__, max_level="DEBUG")
 sr = SettingsReader()
 
 PIC_FILE_EXTENSIONS = ("jpg", "jpeg", "gif", "png", "tif", "bmp",)
 
 
 class PicBotRoutines(BotRoutines):
-	def __init__(self, token, database_handler):
+	def __init__(self, token, database_handler, dropbox_handler=None):
 		self.database_handler = database_handler
 
 		self.pic_folder = sr["pic_folder"]
+
+		self.dropbox_handler = dropbox_handler
+
+		# contains pic-sending threads for each user. Only one hsould be run per user at a time
+		self.db_pic_sender_threads = dict()
 
 		super(PicBotRoutines, self).__init__(token)
 
@@ -31,6 +37,13 @@ class PicBotRoutines(BotRoutines):
 
 		self.sendMessage(chat_id, text, key_markup=key_markup, *args, **kwargs)
 
+	def getLocalFiles(self):
+		"""
+
+		:return: a set of image file paths
+		"""
+		return FolderSearch.getFilepathsInclSubfolders(self.pic_folder, allowed_extensions=PIC_FILE_EXTENSIONS)
+
 	def sendLocalRandomPic(self, chat_id):
 		"""
 		Sends a random picture from a local filesystem. Attaches caption from the folder
@@ -38,13 +51,22 @@ class PicBotRoutines(BotRoutines):
 		"""
 
 		# get list of files from local filesystem
-		files = FolderSearch.getFilepathsInclSubfolders(self.pic_folder, allowed_extensions=PIC_FILE_EXTENSIONS)
-		# pick a file at random
-		random_file = choice(files)
+		files = self.getLocalFiles()
+		if not files:
+			self.sendMessage(chat_id, "Sorry, no images available!")
+			return
+
+		# pick a file at random. `files` is a set, `random.choice` won't work
+		random_file = sample(files, 1)[0]
+		mod_time = FileUtils.getModificationTimeUnix(random_file)
+
+		cache = self.database_handler.getFileCache(random_file)
+		db_mod_time = self.database_handler.getFileModtime(random_file)
+		# log.debug("cache", cache)  # debug
+		# log.debug("db_mod_time", db_mod_time)  # debug
 
 		# if file's cache is present in the database
-		cache = self.database_handler.getFileCache(random_file)
-		if cache:
+		if cache and db_mod_time >= mod_time:
 			# send cached file by Telegram file ID
 			log.debug("sending cached", random_file) #debug
 			data = cache
@@ -52,7 +74,7 @@ class PicBotRoutines(BotRoutines):
 			log.debug("sending file", random_file) #debug
 			data = random_file
 			# add the file to database
-			self.database_handler.addFile(random_file)
+			self.database_handler.addFile(random_file, mod_time=mod_time)
 			cache = None
 
 		try:
@@ -74,7 +96,57 @@ class PicBotRoutines(BotRoutines):
 		# update the file ID
 		if cache is None:
 			# if a cache should be updated, I have set it to `None` above
+			self.database_handler.updateModtime(random_file, mod_time)
 			self.database_handler.updateCache(random_file, file_id)
+
+	def sendDropboxRandomPic(self, chat_id):
+		if not chat_id in self.db_pic_sender_threads or not self.db_pic_sender_threads[chat_id].is_alive():
+			t = Thread(target=self._sendDropboxRandomPicThread, args=(chat_id,))
+			self.db_pic_sender_threads[chat_id] = t
+			t.start()
+		else:
+			self.sendMessage(chat_id, "I'm still sending you a picture. Please wait!")
+
+	def _sendDropboxRandomPicThread(self, chat_id):
+		"""
+		Sends a random picture from Dropbox storage. Attaches caption from the folder
+		:param chat_id:
+		:return:
+		"""
+
+		# get list of files from database
+		files = self.database_handler.getFileList()
+		if not files:
+			self.sendMessage(chat_id, "Sorry, no images available!")
+			return
+
+		# pick a file at random.
+		random_file = choice(files)
+
+		cache = self.database_handler.getFileCache(random_file)
+		# db_mod_time = self.database_handler.getFileModtime(random_file)
+
+		if cache:
+			# send cached file by Telegram file ID
+			log.debug("sending cached", random_file) #debug
+			data = cache
+		else:
+			log.debug("Not cached, getting a file from Dropbox!")  # debug
+			data = self.dropbox_handler.getDropboxFile(random_file)
+
+		metadata = self.database_handler.getMetadataForFile(random_file)
+
+		try:
+			msg = super(PicBotRoutines, self).sendPhoto(chat_id, data, caption=metadata,)
+		except BadFileIDError:
+			# The ID is broken, resend file
+			data = self.dropbox_handler.getDropboxFile(random_file)
+			msg = super(PicBotRoutines, self).sendPhoto(chat_id, data, caption=metadata,)
+			cache = None
+
+		file_id = super(PicBotRoutines, self).getPhotoFileID(msg)
+
+		self.database_handler.updateCache(random_file, file_id)
 
 
 if __name__ == '__main__':

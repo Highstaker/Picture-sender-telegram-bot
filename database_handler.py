@@ -2,7 +2,7 @@ from os import path, makedirs
 import time as m_time
 
 from generic_db import GenericDatabaseHandler
-from textual_data import SCRIPT_FOLDER
+from textual_data import SCRIPT_FOLDER, METADATA_FILENAME
 from settings_reader import SettingsReader
 sr = SettingsReader()
 
@@ -43,6 +43,7 @@ class DatabaseHandler(GenericDatabaseHandler):
 		params = (
 			{'name': 'id', 'type': "INTEGER", "primary_key": True},  # rowid is created automatically, but, whatever
 			{'name': 'file_path', 'type': "TEXT", "unique": True},
+			{'name': 'mod_time', 'type': "INTEGER"},  # mod time in UNIX time (seconds)
 			{'name': 'file_type', 'type': "INTEGER"},  # 1 is picture, 2 is metadata text
 			{'name': 'file_id', 'type': "TEXT"},
 			{'name': 'metadata', 'type': "TEXT"},
@@ -125,7 +126,7 @@ class DatabaseHandler(GenericDatabaseHandler):
 
 		return result
 
-	def addFile(self, file_path, metadata=None):
+	def addFile(self, file_path, metadata=None, mod_time=None):
 		"""
 		Add file to DB, if it is not present.
 		:param file_path:
@@ -133,8 +134,9 @@ class DatabaseHandler(GenericDatabaseHandler):
 		"""
 		meta = metadata if metadata else ""
 		file_type = 2 if metadata else 1
+		mod_time = mod_time if mod_time else 0
 
-		result = self._addEntry("files", file_path=file_path, metadata=meta, file_type=file_type)
+		result = self._addEntry("files", file_path=file_path, metadata=meta, file_type=file_type, mod_time=mod_time)
 		return result
 
 	def updateCache(self, file_path, file_id):
@@ -147,6 +149,32 @@ class DatabaseHandler(GenericDatabaseHandler):
 
 		self._updateEntriesEqual("files", "file_path", file_path, file_id=file_id)
 
+	def updateModtime(self, file_path, mod_time):
+		"""
+		Updates the mod_time in database.
+		:param file_path:
+		:param file_id: ID of a file on Telegram servers
+		:return:
+		"""
+		self._updateEntriesEqual("files", "file_path", file_path, mod_time=mod_time)
+
+	def updateMetafileContent(self, file_path, content):
+		"""
+		Updates the metafile content in database
+		:param file_path:
+		:param content:
+		:return:
+		"""
+		self._updateEntriesEqual("files", "file_path", file_path, metadata=content)
+
+	def invalidateCache(self, file_path):
+		"""
+		Sets the cache to null
+		:param file_path:
+		:return:
+		"""
+		self._updateEntriesEqual("files", "file_path", file_path, file_id=None)
+
 	def getFileCache(self, file_path):
 		"""
 		Returns the file_id (the ID of a file on Telegram servers) from database.
@@ -154,6 +182,20 @@ class DatabaseHandler(GenericDatabaseHandler):
 		:return:
 		"""
 		result = self._getEntryEquals("files", "file_path", file_path, "file_id")
+		try:
+			result = result[0][0]
+		except IndexError:
+			result = None
+
+		return result
+
+	def getFileModtime(self, file_path):
+		"""
+		Returns the file's modification time (in UNIX seconds) and type from database.
+		:param file_path:
+		:return:
+		"""
+		result = self._getEntryEquals("files", "file_path", file_path, "mod_time")
 		try:
 			result = result[0][0]
 		except IndexError:
@@ -185,6 +227,56 @@ class DatabaseHandler(GenericDatabaseHandler):
 
 		return result
 
+	def getFilesModtimesTypes(self):
+		"""
+
+		:return: tuple of tuples containing
+		file path, modification time in unix seconds and integer representing file type
+		"""
+		result = self._getEntryEquals("files", None, None, "file_path", "mod_time", 'file_type')
+
+		return result
+
+	def getMetadataForFile(self, filepath):
+		"""
+		Returns the metadata from database for an image file
+		:param filepath: an image file
+		:return: metadata string
+		"""
+		meta_path = path.join(path.dirname(filepath), METADATA_FILENAME)
+		result = self._getEntryEquals("files", "file_path", meta_path, "metadata")
+
+		try:
+			result = result[0][0]
+		except IndexError:
+			result = None
+
+		return result
+
+	def batchAddFiles(self, data, type="pic"):
+		"""
+		If it is a picture, takes list of tuples (filepath, mod_time, file_type)
+		:param data:
+		:param type: "pic" or "meta"
+		:return:
+		"""
+		if type == "pic":
+			type = 1
+		elif type == "meta":
+			type = 2
+
+		if type == 1:
+			self._batchAdd("files", data, "file_path", "mod_time", "file_type")
+		elif type == 2:
+			self._batchAdd("files", data, "file_path", "mod_time", "metadata", "file_type")
+
+	def batchDeleteFiles(self, files):
+		"""
+		Deletes the files that are in `files` list from database
+		:param files: file paths to delete from database.
+		:return:
+		"""
+		self._batchDeleteEquals("files", "file_path", files)
 
 if __name__ == '__main__':
 	h = DatabaseHandler()

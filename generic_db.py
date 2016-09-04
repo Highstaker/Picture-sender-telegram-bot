@@ -2,8 +2,13 @@ import sqlite3
 import os
 
 from logging_handler import LoggingHandler
-log = LoggingHandler(__name__, max_level='WARNING')
+log = LoggingHandler(__name__, max_level='DEBUG')
 
+
+def split_list(alist,max_size=1):
+	"""Yield successive n-sized chunks from l."""
+	for i in range(0, len(alist), max_size):
+		yield alist[i:i+max_size]
 
 class GenericDatabaseHandler(object):
 	"""docstring for GenericDatabaseHandler"""
@@ -98,6 +103,39 @@ class GenericDatabaseHandler(object):
 		command += ",".join(com_par)
 		command += " WHERE {0}==?;".format(condition_param)
 		parameters.append(equals_what)
+
+		self._run_command(command, parameters)
+
+	def _batchAdd(self, table_name, data, *params):
+		"""
+
+		:param table_name:
+		:param data:
+		:param params:
+		:return:
+		"""
+		split_data = split_list(data, 500)
+
+		for d in split_data:
+			command = "INSERT INTO {0}({1}) VALUES {2}".format(table_name, ",".join(params), ",".join(
+				[
+					"({})".format(",".join("?"*len(params)))
+				 ]*len(d)
+			)
+			)
+			parameters = sum(d, ())  # flatten
+			self._run_command(command, parameters)
+
+	def _batchDeleteEquals(self, table_name, condition_param, in_list):
+		"""
+		Deletes entries from database if a parameter value is in `in_list`
+		:param table_name:
+		:param condition_param: this parameter should be in `in_list`, then the entry is deleted
+		:param in_list:
+		:return:
+		"""
+		command = "DELETE FROM {0} WHERE {1} in ({2});".format(table_name, condition_param, ",".join(["?",]*len(in_list)))
+		parameters = tuple(in_list)
 
 		self._run_command(command, parameters)
 

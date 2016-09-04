@@ -1,5 +1,6 @@
 from os import path
 from time import sleep
+import io
 
 from telegram import ReplyKeyboardMarkup, ParseMode, ReplyKeyboardHide, error, Bot
 
@@ -89,17 +90,22 @@ class BotRoutines(Bot):
 		return msg['photo'][-1]['file_id']
 
 	def sendPhoto(self, chat_id, photo, caption=None, **kwargs):
-		try:
-			with open(photo, "rb") as pic:
-				sent_msg = super(BotRoutines, self).sendPhoto(chat_id, pic, caption)
-		except FileNotFoundError:
-			# it's an ID
+		if isinstance(photo, bytes):
+			# It is a bytestring
+			pic = io.BufferedReader(io.BytesIO(photo))
+			sent_msg = super(BotRoutines, self).sendPhoto(chat_id, pic, caption)
+		else:
 			try:
-				sent_msg = super(BotRoutines, self).sendPhoto(chat_id, photo, caption)
-			except error.BadRequest:
-				# bad ID. Do nothing
-				sent_msg = None
-				raise BadFileIDError("File ID is probably broken")
+				with open(photo, "rb") as pic:
+					sent_msg = super(BotRoutines, self).sendPhoto(chat_id, pic, caption)
+			except FileNotFoundError:
+				# it's an ID
+				try:
+					sent_msg = super(BotRoutines, self).sendPhoto(chat_id, photo, caption)
+				except error.BadRequest:
+					# bad ID. Do nothing
+					sent_msg = None
+					raise BadFileIDError("File ID is probably broken")
 		return sent_msg
 
 	def sendMessageCommandMethod(self, bot, update, text, *args, **kwargs):
