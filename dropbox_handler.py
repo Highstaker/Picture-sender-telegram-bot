@@ -3,17 +3,17 @@ from os import path
 import requests
 import json
 
+from parameters import PIC_FILE_EXTENSIONS
 from textual_data import METADATA_FILENAME
 from utils import DropboxFolderSearch
 from logging_handler import LoggingHandler
 log = LoggingHandler(__name__, max_level="DEBUG")
 
-IMAGE_FILE_EXTENSIONS = (".jpg", ".jpeg", ".png",)
 AUX_FILES = (METADATA_FILENAME,)  # various filenames, like metadata, collections info, etc.
 
 
 def is_pic(filepath):
-	return path.splitext(filepath)[1].lower() in IMAGE_FILE_EXTENSIONS
+	return path.splitext(filepath)[1].replace(".","").lower() in PIC_FILE_EXTENSIONS
 
 
 def is_auxfile(filepath):

@@ -8,14 +8,12 @@ from database_handler import DatabaseHandler, DatabaseError
 from utils import FolderSearch, FileUtils
 from textual_data import METADATA_FILENAME
 from button_handler import getMainMenu
+from parameters import PIC_FILE_EXTENSIONS
 
 from settings_reader import SettingsReader
 from logging_handler import LoggingHandler
 log = LoggingHandler(__name__, max_level="DEBUG")
 sr = SettingsReader()
-
-PIC_FILE_EXTENSIONS = ("jpg", "jpeg", "gif", "png", "tif", "bmp",)
-
 
 class PicBotRoutines(BotRoutines):
 	def __init__(self, token, database_handler, dropbox_handler=None):
@@ -58,6 +56,7 @@ class PicBotRoutines(BotRoutines):
 
 		# pick a file at random. `files` is a set, `random.choice` won't work
 		random_file = sample(files, 1)[0]
+		log.info("random_file", random_file)
 		mod_time = FileUtils.getModificationTimeUnix(random_file)
 
 		cache = self.database_handler.getFileCache(random_file)
@@ -115,13 +114,14 @@ class PicBotRoutines(BotRoutines):
 		"""
 
 		# get list of files from database
-		files = self.database_handler.getFileList()
+		files = FileUtils.filterByExtension(self.database_handler.getFileList(), PIC_FILE_EXTENSIONS)
 		if not files:
 			self.sendMessage(chat_id, "Sorry, no images available!")
 			return
 
 		# pick a file at random.
 		random_file = choice(files)
+		log.info("random_file", random_file)
 
 		cache = self.database_handler.getFileCache(random_file)
 		# db_mod_time = self.database_handler.getFileModtime(random_file)

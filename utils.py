@@ -174,6 +174,21 @@ class FileUtils:
 
 		return result
 
+	@staticmethod
+	def filterByExtension(filelist, exts=()):
+		"""
+		returns a list of files the extensions of which are in `exts`
+		:param filelist:
+		:return:
+		"""
+		result = []
+		for f in filelist:
+			if path.splitext(f)[1].replace(".","").lower() in exts:
+				result.append(f)
+
+		return result
+
+
 class StringConversionUtils:
 
 	@staticmethod
