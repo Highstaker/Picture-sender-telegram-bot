@@ -116,7 +116,7 @@ class PicBotRoutines(BotRoutines):
 		"""
 		def filize_data(fil, dat):
 			log.info("filizing data!", fil)
-			fil = fil.strip(" /")  # it may have slashes
+			fil = path.basename(fil) # it may have slashes
 			tmp_dir = path.join("/tmp", "Pic_bot_temp", str(chat_id))
 			tmp_file = path.join(tmp_dir, fil)
 			makedirs(tmp_dir, exist_ok=True)
