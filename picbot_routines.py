@@ -1,5 +1,5 @@
 from random import choice, sample
-from os import path
+from os import path, makedirs, remove
 from time import sleep
 from threading import Thread
 
@@ -114,6 +114,17 @@ class PicBotRoutines(BotRoutines):
 		:param chat_id:
 		:return:
 		"""
+		def filize_data(fil, dat):
+			log.info("filizing data!", fil)
+			fil = fil.strip(" /")  # it may have slashes
+			tmp_dir = path.join("/tmp", "Pic_bot_temp", str(chat_id))
+			tmp_file = path.join(tmp_dir, fil)
+			makedirs(tmp_dir, exist_ok=True)
+			with open(tmp_file, 'wb') as fi:
+				fi.write(dat)
+			result = super(PicBotRoutines, self).sendPhoto(chat_id, tmp_file, caption=metadata, )
+			remove(tmp_file)
+			return result
 
 		# get list of files from database
 		if not random_override:
@@ -149,15 +160,21 @@ class PicBotRoutines(BotRoutines):
 		try:
 			msg = super(PicBotRoutines, self).sendPhoto(chat_id, data, caption=metadata,)
 		except BadFileIDError:
-			# The ID is broken, resend file
-			data = self.dropbox_handler.getDropboxFile(random_file)
-			if not data:
-				# if not data, the file is probably gone, retry the whole routine
-				if not random_override:
-					self._sendDropboxRandomPicThread(chat_id)
-				return
-			msg = super(PicBotRoutines, self).sendPhoto(chat_id, data, caption=metadata,)
+			try:
+				# The ID is broken, resend file
+				data = self.dropbox_handler.getDropboxFile(random_file)
+				if not data:
+					# if not data, the file is probably gone, retry the whole routine
+					if not random_override:
+						self._sendDropboxRandomPicThread(chat_id)
+					return
+				msg = super(PicBotRoutines, self).sendPhoto(chat_id, data, caption=metadata,)
+			except (TelegramError,
+					TypeError):  # weird errors when a file cannot be read from data. Have to read it from actual file
+				msg = filize_data(random_file, data)
 			cache = None
+		except (TelegramError, TypeError): #weird errors when a file cannot be read from data. Have to read it from actual file
+			msg = filize_data(random_file, data)
 
 		file_id = super(PicBotRoutines, self).getPhotoFileID(msg)
 

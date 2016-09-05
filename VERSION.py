@@ -1,1 +1,1 @@
-VERSION_NUMBER = (2, 2, 3)
+VERSION_NUMBER = (2, 2, 4)
