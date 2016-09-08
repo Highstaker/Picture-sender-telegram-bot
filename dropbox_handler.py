@@ -83,16 +83,18 @@ class DropboxHandler(object):
 
 		db_files = set(db_files_and_mods.keys())
 		bd_files = set(bd_files_and_mods.keys())
-		# log.debug("db_files", db_files)
-		# log.debug("bd_files", bd_files)
+		log.debug("db_files", db_files)
+		log.debug("bd_files", bd_files)
 
 		# deleting nonexistent files from database
 		to_delete = bd_files.difference(db_files)
+		log.debug("to_delete", to_delete)
 		self.database_handler.batchDeleteFiles(to_delete)
 		del to_delete
 
 		# adding files
 		to_add = db_files.difference(bd_files)
+		log.debug("to_add", to_add)
 		# get pictures and add to database
 		pics_to_add = set(i for i in to_add if is_pic(i))
 		data_to_add = tuple((i, db_files_and_mods[i]['mod_time'], 1,) for i in db_files if i in pics_to_add)
