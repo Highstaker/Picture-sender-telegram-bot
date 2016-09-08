@@ -83,8 +83,8 @@ class DropboxHandler(object):
 
 		db_files = set(db_files_and_mods.keys())
 		bd_files = set(bd_files_and_mods.keys())
-		log.debug("db_files", db_files)
-		log.debug("bd_files", bd_files)
+		# log.debug("db_files", db_files)
+		# log.debug("bd_files", bd_files)
 
 		# deleting nonexistent files from database
 		to_delete = bd_files.difference(db_files)
