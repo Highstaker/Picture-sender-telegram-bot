@@ -65,6 +65,7 @@ class UserCommandHandler(PicBotRoutines):
 		self._addHandlers()
 
 		if self.pic_source == "DB":
+			self.DB_file_updater_thread = None # a thread that updates files
 			self.dropbox_handler = DropboxHandler(self.database_handler)
 			self._updateDBFiles()
 		elif self.pic_source == "local":
@@ -78,8 +79,16 @@ class UserCommandHandler(PicBotRoutines):
 			log.debug("_initializeSubscriptionJobs chat_id", chat_id)
 			self.createPeriodicSenderTask(chat_id)
 
-	def _updateDBFiles(self):
-		self.dropbox_handler.updateFiles()
+	def _updateDBFiles(self, bot=None, job=None):
+		if not self.DB_file_updater_thread or not self.DB_file_updater_thread.is_alive():
+			self.DB_file_updater_thread = self.dropbox_handler.updateFiles()
+			job = Job(self._updateDBFiles, interval=sr['file_update_period'], repeat=False)
+		else:
+			log.warning("The Dropbox updater thread hasn't finished yet. Consider increasing FILE_UPDATE_PERIOD in settings!")
+			job = Job(self._updateDBFiles, interval=10, repeat=False)
+
+		# create periodic job
+		self.job_queue.put(job)
 
 	def _startLocalCleanerJob(self):
 		"""

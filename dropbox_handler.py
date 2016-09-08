@@ -46,6 +46,7 @@ class DropboxHandler(object):
 	def updateFiles(self):
 		t = Thread(target=self._updaterThread)
 		t.start()
+		return t
 
 	def _updaterThread(self):
 		def filtr(l):
@@ -124,7 +125,7 @@ class DropboxHandler(object):
 						self.database_handler.updateMetafileContent(filepath, content)
 					self.database_handler.updateModtime(filepath, db_mod_time)
 
-
+		log.info("Updater thread finished its job")
 
 	def getDropboxFile(self, filepath):
 		"""
